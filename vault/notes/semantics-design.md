@@ -1,13 +1,13 @@
 ---
 heptabase:
+  schemaVersion: 1
   cardId: 993aa0e2-9af8-4897-98b5-35b5a334cf3b
   type: note
-  title: HeptaSync v1 — 語意與互動設計(白話版)
   tags:
     - HeptaSync
   whiteboards: []
-  contentMd5: 4f25b991e8dbf2bfbf40df113857031e
-  syncedAt: 2026-05-22T14:48:06Z
+  contentMd5: 5a9f5f6e26a2e2659aedc31bdeb7b631
+  syncedAt: 2026-05-22T16:23:06Z
 ---
 # HeptaSync v1 — 語意與互動設計(白話版)
 
@@ -20,8 +20,8 @@ HeptaSync 補的是官方 Heptabase CLI 缺的那一個動作:**「改寫一張�
 ## 怎麼用
 
 1. 想改某張卡 → `hs pull` 把它變成本地一個 `.md` 檔。
-1. 像改一般文字檔一樣編輯它。
-1. `hs push` 推回 Heptabase —— 還是同一張卡,身分不變。
+2. 像改一般文字檔一樣編輯它。
+3. `hs push` 推回 Heptabase —— 還是同一張卡,身分不變。
 
 找卡、建全新的卡,還是用官方 CLI 比較簡單;HeptaSync 專心做「改既有卡」這件事。
 
@@ -58,9 +58,9 @@ HeptaSync 補的是官方 Heptabase CLI 缺的那一個動作:**「改寫一張�
 ## ⚠️ 我覺得你還需要額外想的
 
 1. **journal 沒進 v1,但 journal 可能才是你最常用的。** 你每天在 Heptabase 寫 journal(LeetCode 紀錄那些)。journal 技術上跟 note 幾乎一樣、加進來很便宜。要想清楚:v1 切「只做 note」,是不是剛好把你最高頻的用途排除掉了?
-1. **判斷邏輯要放程式裡,還是交給 Claude?** 像「卡太大要不要切」「衝突怎麼辦」「tag 像不像」這些判斷,還沒決定是 `hs` 程式自己做,還是 `hs` 只負責回報、由 Claude 讀完再決定。這會大幅影響怎麼實作,值得先想。
-1. **同一張卡可能同時待在兩個 vault。** 你選了「每個專案一個 vault」。代價是同一張卡被 pull 進專案 A 跟專案 B,兩邊各改會打架。工具靠衝突機制接住、不會掉資料,但用起來會煩 —— 想一下這在你身上會不會常發生。
-1. **白板在 v1 是唯讀的。** 你本來以為 `whiteboards` 欄位可以編輯,但 v1 不寫白板。確認一下你 OK 在 v1 沒有「用 frontmatter 把卡丟上白板」這個功能。
+2. **判斷邏輯要放程式裡,還是交給 Claude?** 像「卡太大要不要切」「衝突怎麼辦」「tag 像不像」這些判斷,還沒決定是 `hs` 程式自己做,還是 `hs` 只負責回報、由 Claude 讀完再決定。這會大幅影響怎麼實作,值得先想。
+3. **同一張卡可能同時待在兩個 vault。** 你選了「每個專案一個 vault」。代價是同一張卡被 pull 進專案 A 跟專案 B,兩邊各改會打架。工具靠衝突機制接住、不會掉資料,但用起來會煩 —— 想一下這在你身上會不會常發生。
+4. **白板在 v1 是唯讀的。** 你本來以為 `whiteboards` 欄位可以編輯,但 v1 不寫白板。確認一下你 OK 在 v1 沒有「用 frontmatter 把卡丟上白板」這個功能。
 
 hepta.sync
 
@@ -69,3 +69,7 @@ heptasync
 hs
 
 本地撞車測試行 — 我在本地加的。
+
+樂觀鎖驗證行。
+
+衝突處理驗證行。

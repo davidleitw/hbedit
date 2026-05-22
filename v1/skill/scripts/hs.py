@@ -96,7 +96,17 @@ def push(path):
         try:
             new_doc = json.loads(htb.note_read(scratch["id"])["content"])
             report = transplant.transplant_ids(old_doc, new_doc)
-            htb.note_save(card_id, json.dumps(new_doc), lock_md5)
+            try:
+                htb.note_save(card_id, json.dumps(new_doc), lock_md5)
+            except htb.HtbError as exc:
+                # Heptabase server signal; substring match is fragile —
+                # revisit if upstream changes the wording.
+                if "content conflict" in htb.error_detail(exc).lower():
+                    # _handle_conflict re-pulls, which writes the sidecar +
+                    # frontmatter itself; the persist block below is then
+                    # correctly skipped via this early return.
+                    return _handle_conflict(path, body, vault, card_id)
+                raise
         finally:
             htb.card_trash(scratch["id"])
         action = "updated [%s]" % " ".join(
@@ -147,6 +157,32 @@ def pull(card_id, vault):
     _write(_sidecar_path(vault, card_id), rec["content"])
     vaultlib.set_tag_base(vault, card_id, tags)
     return path
+
+
+def _conflict_path(path):
+    """`notes/foo.md` -> `notes/foo.conflict.md`."""
+    stem, ext = os.path.splitext(path)
+    return stem + ".conflict" + ext
+
+
+def _handle_conflict(path, local_body, vault, card_id):
+    """Remote changed since last pull: back up the local body (never
+    clobbering an earlier unreconciled backup), then re-pull the remote
+    latest over the working file. The user reconciles by hand."""
+    backup = _conflict_path(path)
+    stem, ext = os.path.splitext(backup)
+    n = 2
+    while os.path.exists(backup):
+        backup = "%s.%d%s" % (stem, n, ext)
+        n += 1
+    _write(backup, local_body)
+    try:
+        pull(card_id, vault)        # overwrites `path` with remote latest
+    except Exception as exc:
+        raise RuntimeError(
+            "conflict backup saved to %s, but the re-pull failed: %s"
+            % (backup, exc)) from exc
+    return card_id, "conflict (local saved to %s)" % os.path.basename(backup)
 
 
 def main(argv):

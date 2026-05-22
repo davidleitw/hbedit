@@ -1,0 +1,474 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "heading",
+      "attrs": {
+        "id": "322f2434-ff2d-429d-9d18-cd3fdcb27660",
+        "level": 1
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "E01 Extended Schema"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "id": "18634351-ee4c-4b24-9a47-8aa7f03bbb50",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Todo"
+        }
+      ]
+    },
+    {
+      "type": "todo_list_item",
+      "attrs": {
+        "id": "5981b184-decf-4312-a725-ea95421d0fef",
+        "checked": false,
+        "dueDate": null,
+        "lastCheckedTime": null,
+        "lastUpdatedTime": "2026-05-21T14:28:04.846Z"
+      },
+      "content": [
+        {
+          "type": "paragraph",
+          "attrs": {
+            "id": "00636f54-ba11-4714-a2c9-f0980be4b80b"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "unchecked task"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "todo_list_item",
+      "attrs": {
+        "id": "6e548fb7-4ac1-4a46-8dd0-a5da3e4630a5",
+        "checked": true,
+        "dueDate": null,
+        "lastCheckedTime": null,
+        "lastUpdatedTime": "2026-05-21T14:28:04.846Z"
+      },
+      "content": [
+        {
+          "type": "paragraph",
+          "attrs": {
+            "id": "d43a3a9d-0689-4d1e-a067-1a5594289736"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "checked task"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "id": "4781c38d-2aba-4137-b2f3-6cd3cc7c11c9",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Divider"
+        }
+      ]
+    },
+    {
+      "type": "horizontal_rule",
+      "attrs": {
+        "id": "1a1d561e-6c72-41f0-af89-70058edc1208"
+      }
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "id": "a16259a2-8b8b-4e27-92c4-42594c42da54",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Table"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "attrs": {
+        "id": "95046ae3-88eb-4478-8543-367d1877af22",
+        "hasRowHeader": false,
+        "hasColumnHeader": false
+      },
+      "content": [
+        {
+          "type": "table_row",
+          "attrs": {
+            "id": "12cf5d0c-bd00-4261-b0b1-10a9c978b010"
+          },
+          "content": [
+            {
+              "type": "table_header",
+              "attrs": {
+                "id": "fd47e3dc-c0c8-4e73-918a-229108ff3f9d",
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": null,
+                "backgroundColor": null,
+                "textColor": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "7f02253e-d532-43e2-b416-0a92cc084bcf"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Name"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "table_header",
+              "attrs": {
+                "id": "1218222b-3c92-4fa3-9e17-bf5e236411a2",
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": null,
+                "backgroundColor": null,
+                "textColor": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "6d86cc2b-c8f3-440d-9f14-38f9878e4864"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Value"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "table_row",
+          "attrs": {
+            "id": "f499661c-9179-4a84-8b61-b546b1720c47"
+          },
+          "content": [
+            {
+              "type": "table_cell",
+              "attrs": {
+                "id": "7433dab5-1ab7-41d5-a09e-79828473a3ec",
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": null,
+                "backgroundColor": null,
+                "textColor": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "db29ead8-8edc-4d41-93d9-c3389df43256"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "a"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "table_cell",
+              "attrs": {
+                "id": "c2e8a9c7-cf60-494c-9f06-f7ea90942199",
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": null,
+                "backgroundColor": null,
+                "textColor": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "55b80fc0-0f20-49fe-8bf6-45a1ff954f08"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "1"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "table_row",
+          "attrs": {
+            "id": "6215027f-c20a-4415-97ea-ac3468335c7c"
+          },
+          "content": [
+            {
+              "type": "table_cell",
+              "attrs": {
+                "id": "17f37fe6-7ea8-43ab-99da-5f29b3800111",
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": null,
+                "backgroundColor": null,
+                "textColor": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "e582305e-f66d-4a5b-8954-084f5536c71f"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "b"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "table_cell",
+              "attrs": {
+                "id": "7899d544-cea8-4675-89b7-fb2a96918a65",
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": null,
+                "backgroundColor": null,
+                "textColor": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "id": "17d4ea4d-ef4a-4ea5-8aa2-4531ce14a35a"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "2"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "id": "cbc01db5-50e9-4ddd-9e1d-48585dce39f6",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Math"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "id": "620e1a9e-8666-4b76-a373-5d2a43ee3756"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Inline math "
+        },
+        {
+          "type": "math_inline",
+          "content": [
+            {
+              "type": "text",
+              "text": "a^2 + b^2 = c^2"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " here."
+        }
+      ]
+    },
+    {
+      "type": "math_display",
+      "attrs": {
+        "id": "8a3a8941-1490-44e9-bfb5-a602f4ff0c6c"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "\\sum_{i=1}^{n} i"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "id": "9319488b-27d9-4241-bfd9-1afa86cf5c6a",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Image"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "id": "aa557059-5a27-45af-9d01-634fd10f5fb0",
+        "src": "https://example.com/sample.png",
+        "fileId": null,
+        "alt": null,
+        "title": null,
+        "width": null,
+        "originalHeight": null,
+        "originalWidth": null,
+        "alignment": "center",
+        "reference": null
+      }
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "id": "e3d561f5-23c5-420a-a3f1-5b30df6755a3",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Mixed nested list"
+        }
+      ]
+    },
+    {
+      "type": "bullet_list_item",
+      "attrs": {
+        "id": "b74b9a28-3ecc-4779-be6a-8ebbb42dfe6e",
+        "folded": false,
+        "format": null
+      },
+      "content": [
+        {
+          "type": "paragraph",
+          "attrs": {
+            "id": "040452da-0e56-4d86-a6a0-f532086c08d1"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "bullet one"
+            }
+          ]
+        },
+        {
+          "type": "numbered_list_item",
+          "attrs": {
+            "id": "8b4d5348-1ed5-4a5a-b930-a09fe27fc291",
+            "order": null,
+            "format": null
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "id": "88b1ed63-3a15-4975-a059-7ae1c0a98e72"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "numbered child"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "numbered_list_item",
+          "attrs": {
+            "id": "1632f79b-6474-4386-bf87-82b2b3f8255d",
+            "order": null,
+            "format": null
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "id": "0370dae4-27f2-4bc1-90cd-5de52ef172df"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "another child"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "bullet_list_item",
+      "attrs": {
+        "id": "30d2ddfb-67d7-4674-811c-491fe0e990e8",
+        "folded": false,
+        "format": null
+      },
+      "content": [
+        {
+          "type": "paragraph",
+          "attrs": {
+            "id": "6eea4a11-cc07-475b-b968-e2d5d127e1db"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "bullet two"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

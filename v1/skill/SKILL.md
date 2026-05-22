@@ -33,6 +33,11 @@ use the official `heptabase` CLI directly; it is simpler.
    `heptabase:` frontmatter block — it ties the file to its card.
 3. `hs push <file>` — pushes the edited `.md` back into the same card.
 
+> Caution: `hs pull` overwrites the working `.md` file with the card's
+> remote content. If the file has un-pushed local edits, `hs push` them
+> first — a direct `hs pull` does not back them up (only a conflict
+> detected during `hs push` creates a `.conflict.md` backup).
+
 ## Reacting to push outcomes
 
 `hs push` overwrites real card content. Watch its output:

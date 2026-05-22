@@ -122,8 +122,7 @@ def push(path):
     rec = htb.note_read(card_id)
     _write(_sidecar_path(vault, card_id), rec["content"])
     new_meta = frontmatter.build_note_meta(
-        rec, tags=hb.get("tags"), whiteboards=hb.get("whiteboards"),
-        synced_at=_now())
+        rec, tags=hb.get("tags"), synced_at=_now())
     _write(path, frontmatter.serialize(new_meta, body))
 
     # sync tags (3-way); a typo aborts here, after content state is saved
@@ -153,20 +152,12 @@ def pull(card_id, vault):
 
     # locate the existing file for this card, or pick a first-pull path
     path = vaultlib.find_file_by_card_id(vault, card_id)
-    whiteboards = []
     if path is None:
         notes = os.path.join(vault, "notes")
         os.makedirs(notes, exist_ok=True)
         path = _slug_path(notes, rec["title"], card_id)
-    else:
-        # preserve the user-editable whiteboards field across a pull
-        with open(path, encoding="utf-8") as fh:
-            old_meta, _ = frontmatter.parse(fh.read())
-        whiteboards = old_meta.get(frontmatter.MANAGED_KEY, {}).get(
-            "whiteboards", [])
 
-    meta = frontmatter.build_note_meta(
-        rec, tags=tags, whiteboards=whiteboards, synced_at=_now())
+    meta = frontmatter.build_note_meta(rec, tags=tags, synced_at=_now())
     _write(path, frontmatter.serialize(meta, body))
     _write(_sidecar_path(vault, card_id), rec["content"])
     vaultlib.set_tag_base(vault, card_id, tags)

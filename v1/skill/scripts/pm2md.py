@@ -1,8 +1,8 @@
 """Best-effort ProseMirror JSON -> Markdown converter for Heptabase cards.
 
-This is a POC. It handles the node/mark types observed so far and *records*
-anything it does not recognise (instead of silently dropping it) so the POC can
-measure round-trip fidelity honestly.
+Handles the node/mark types observed so far and *records* anything it does not
+recognise (instead of silently dropping it) so round-trip fidelity can be
+measured honestly.
 """
 from __future__ import annotations
 

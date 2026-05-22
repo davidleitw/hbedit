@@ -54,7 +54,6 @@ heptabase:
   type: note
   tags:
     - HeptaSync
-  whiteboards: []
   contentMd5: 7d960abeac141347ff200a6f59991de9
   syncedAt: 2026-05-22T00:00:00Z
 ---
@@ -69,7 +68,6 @@ Body markdown...
 | `cardId` | Heptabase 卡片 UUID;卡片的唯一身分 | HeptaSync |
 | `type` | `note`(v1 之後:`journal`) | HeptaSync |
 | `tags` | 卡片的 tag 名稱清單 | 雙向(3-way 合併,見 §8.5) |
-| `whiteboards` | 卡片所屬 whiteboard 的 ID 清單 | v1 唯讀 echo(寫入留 v1.1,見 §8.6) |
 | `contentMd5` | 上次 pull 時 Heptabase 回傳的 md5;樂觀鎖用 | HeptaSync |
 | `syncedAt` | 上次成功同步的時間 | HeptaSync |
 
@@ -133,9 +131,9 @@ schema 太脆弱),改用 **transplant 策略**:
 | 卡片引用無法從 markdown 建立 | frontmatter 可列出引用供唯讀;不可從本地新建引用 | E03 |
 | 100,000 字元上限:create 驗證 markdown、save 驗證 ProseMirror JSON | JSON 約為 markdown 數倍,故 `note save`(push)可推送的卡片遠小於 100K markdown;daemon 需對超長卡片分段或拒絕同步 | E21 |
 | CLI 無刪除 tag 的指令 | 從 frontmatter 移除 tag 不會刪掉 tag 資料庫 | E09 |
-| whiteboard 只能管成員、不能定位 | `whiteboards:` 只表達歸屬,不存座標 | E11 |
+| whiteboard 只能管成員、不能定位 | v1.1 做 whiteboard 時只能表達歸屬,不存座標 | E11 |
 | journal 用日期當 key | 與 note(UUID)分開建模 | E16 |
-| 需 desktop app 開著 | app 關閉時 daemon 需本地佇列、重連後 flush | skill 文件 |
+| 需 desktop app 開著 | app 關閉時所有 `hs` 指令失敗;`hs doctor` 會先回 `app-not-running` 擋下 | §9.4 |
 
 ## 7. v1 實作計畫
 
@@ -285,7 +283,6 @@ heptabase:
   cardId: <uuid>
   type: note
   tags: [...]
-  whiteboards: [...]      # v1 唯讀 echo
   contentMd5: <上次 pull 的 md5>
   syncedAt: <iso>
 ---
@@ -296,8 +293,9 @@ heptabase:
    cardId)→ 事後回報。補 frontmatter 是工具能追蹤的必要動作,非選配。
 2. **managed / 可編** —— `cardId`、`type`、`contentMd5`、`syncedAt`、
    `schemaVersion` 由 HeptaSync 管理,使用者不應手改;`tags` 可編、雙向
-   (3-way);`whiteboards` v1 為唯讀 echo(pull 填入供檢視,push 忽略其
-   變動;白板寫入留 v1.1)。
+   (3-way)。whiteboard 成員關係**不納入 v1 schema** —— Heptabase 沒有
+   便宜的「卡片→所屬白板」查詢,且 v1 不寫白板;整個 whiteboard 支援
+   (讀與寫)留待 v1.1,屆時再加回對應欄位(`schemaVersion` 即為此而設)。
 3. **managed 欄位防呆** —— push 前以輕量驗證比對 frontmatter 的 managed
    欄位 vs `state.json`:`cardId` 與 state 不符 → **中止並警告**(幾乎
    必為誤改);`contentMd5` / `type` / `syncedAt` / `schemaVersion` 被改
@@ -309,9 +307,9 @@ heptabase:
 
 - **§2 / `v1/skill/scripts/hs.py`** —— `_vault_root` 從「往上找 `notes/` 父層」改為
   「往上找含 `.heptasync/` 的目錄」(§8.2)。
-- **§3** —— frontmatter schema 表移除 `title`、新增 `schemaVersion`、
-  `whiteboards` 寫入方改為「v1 唯讀」;卡片標題不再進 frontmatter,真相
-  為 body H1(§8.3)。
+- **§3** —— frontmatter schema 表移除 `title`、新增 `schemaVersion`;
+  `whiteboards` 不納入 v1 schema(整個 whiteboard 支援留 v1.1);卡片
+  標題不再進 frontmatter,真相為 body H1(§8.3)。
 - **§4 / `v1/skill/scripts/hs.py`** —— 現行 push 以重新 `note read` 的當下 md5 當
   樂觀鎖,等於鎖失效、永不偵測衝突。2026-05-22 dogfood 撞車實測證實:
   本地與遠端在同一同步點後各改一行,`hs push` 回報 `updated` 成功、

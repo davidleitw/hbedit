@@ -12,7 +12,6 @@ strip before pushing content to Heptabase.
       type: note
       tags:
         - LeetCode
-      whiteboards: []
       contentMd5: 7d960abeac141347ff200a6f59991de9
       syncedAt: 2026-05-22T00:00:00Z
     ---
@@ -24,9 +23,9 @@ Standard markdown previewers hide the `---` frontmatter, so the metadata is
 invisible while reading.
 
 This module implements a *minimal* YAML subset — exactly the shapes this schema
-uses (one nesting level, scalars and lists). The v1 daemon proper should use
-`pyyaml`; this keeps the POC dependency-free. Round-trip is verified by
-experiment E19.
+uses (one nesting level, scalars and lists). The minimal subset is intentional:
+the tool stays stdlib-only (zero external dependencies). Round-trip is verified
+by experiment E19.
 """
 from __future__ import annotations
 
@@ -34,7 +33,7 @@ MANAGED_KEY = "heptabase"
 SCHEMA_VERSION = 1
 
 # The managed keys, in canonical emit order.
-SCHEMA_FIELDS = ["schemaVersion", "cardId", "type", "tags", "whiteboards",
+SCHEMA_FIELDS = ["schemaVersion", "cardId", "type", "tags",
                  "contentMd5", "syncedAt"]
 
 
@@ -62,7 +61,7 @@ def serialize(meta, body):
     return "\n".join(lines) + "\n" + body
 
 
-def build_note_meta(card_record, tags=None, whiteboards=None, synced_at=None):
+def build_note_meta(card_record, tags=None, synced_at=None):
     """Build the managed frontmatter dict for a note card.
 
     card_record: a dict from `heptabase note read` (id, contentMd5).
@@ -75,7 +74,6 @@ def build_note_meta(card_record, tags=None, whiteboards=None, synced_at=None):
         "cardId": card_record.get("id"),
         "type": "note",
         "tags": list(tags or []),
-        "whiteboards": list(whiteboards or []),
         "contentMd5": card_record.get("contentMd5"),
         "syncedAt": synced_at,
     }

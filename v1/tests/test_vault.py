@@ -9,9 +9,9 @@ import vault
 
 
 class TestVaultDiscovery(unittest.TestCase):
-    def test_find_vault_root_walks_up_to_heptasync_dir(self):
+    def test_find_vault_root_walks_up_to_hbedit_dir(self):
         with tempfile.TemporaryDirectory() as root:
-            os.makedirs(os.path.join(root, ".heptasync"))
+            os.makedirs(os.path.join(root, ".hbedit"))
             deep = os.path.join(root, "notes", "sub")
             os.makedirs(deep)
             f = os.path.join(deep, "x.md")
@@ -40,7 +40,7 @@ class TestVaultDiscovery(unittest.TestCase):
 class TestVaultState(unittest.TestCase):
     def test_tag_base_round_trips(self):
         with tempfile.TemporaryDirectory() as root:
-            os.makedirs(os.path.join(root, ".heptasync"))
+            os.makedirs(os.path.join(root, ".hbedit"))
             self.assertEqual(vault.get_tag_base(root, "CID-1"), [])
             vault.set_tag_base(root, "CID-1", ["work", "urgent"])
             self.assertEqual(
@@ -52,14 +52,14 @@ class TestVaultState(unittest.TestCase):
 
     def test_set_tag_base_creates_state_dir_on_fresh_vault(self):
         with tempfile.TemporaryDirectory() as root:
-            # no .heptasync/ pre-created — save_state must makedirs it
+            # no .hbedit/ pre-created — save_state must makedirs it
             vault.set_tag_base(root, "CID-1", ["a"])
             self.assertEqual(vault.get_tag_base(root, "CID-1"), ["a"])
 
     def test_load_state_recovers_from_corrupt_file(self):
         with tempfile.TemporaryDirectory() as root:
-            os.makedirs(os.path.join(root, ".heptasync"))
-            with open(os.path.join(root, ".heptasync", "state.json"),
+            os.makedirs(os.path.join(root, ".hbedit"))
+            with open(os.path.join(root, ".hbedit", "state.json"),
                       "w", encoding="utf-8") as f:
                 f.write("{not valid json")
             self.assertEqual(vault.get_tag_base(root, "CID-1"), [])

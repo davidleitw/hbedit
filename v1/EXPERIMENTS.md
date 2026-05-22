@@ -1,4 +1,4 @@
-# HeptaSync POC — 實驗記錄
+# hbedit POC — 實驗記錄
 
 > 本檔由 `poc.py` 自動產生,內容直接反映實際執行結果。
 

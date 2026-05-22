@@ -1,4 +1,4 @@
-"""HeptaSync v1 — tag 3-way merge and fuzzy-match guard. See DESIGN.md §8.5."""
+"""hbedit v1 — tag 3-way merge and fuzzy-match guard. See DESIGN.md §8.5."""
 from __future__ import annotations
 
 import difflib
@@ -29,7 +29,7 @@ def find_similar_tag(name, existing, threshold=0.8):
     close to one (case-folded difflib ratio >= threshold), return that
     closest tag; otherwise return None.
 
-    A case-only difference (e.g. "heptasync" vs "HeptaSync") IS surfaced as a
+    A case-only difference (e.g. "hbedit" vs "Hbedit") IS surfaced as a
     hit — Heptabase tag names are case-sensitive, so `tag add` on the wrong
     casing would spawn a near-duplicate; the caller stops and asks either way.
     """

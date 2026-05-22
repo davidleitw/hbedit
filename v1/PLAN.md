@@ -1,10 +1,10 @@
-# HeptaSync v1 — POC 修正實作計畫
+# hbedit v1 — POC 修正實作計畫
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 修掉 `DESIGN.md` §8.7 的程式級 bug,讓 `hs pull` / `hs push` 完全符合 §8 的語意設計。
+**Goal:** 修掉 `DESIGN.md` §8.7 的程式級 bug,讓 `hb pull` / `hb push` 完全符合 §8 的語意設計。
 
-**Architecture:** 在既有 POC 之上,新增 `v1/skill/scripts/vault.py`(vault 探測 / 以 cardId 找檔 / `state.json`)與 `v1/skill/scripts/tagsync.py`(3-way tag 合併、模糊比對),修正 `v1/skill/scripts/frontmatter.py`、`v1/skill/scripts/pm2md.py`、`v1/skill/scripts/htb.py`,並重寫 `v1/skill/scripts/hs.py` 的 `pull` / `push`。純邏輯走 TDD(stdlib `unittest`);`pull` / `push` / 衝突走對真實 Heptabase 的整合驗證。
+**Architecture:** 在既有 POC 之上,新增 `v1/skill/scripts/vault.py`(vault 探測 / 以 cardId 找檔 / `state.json`)與 `v1/skill/scripts/tagsync.py`(3-way tag 合併、模糊比對),修正 `v1/skill/scripts/frontmatter.py`、`v1/skill/scripts/pm2md.py`、`v1/skill/scripts/htb.py`,並重寫 `v1/skill/scripts/hbedit.py` 的 `pull` / `push`。純邏輯走 TDD(stdlib `unittest`);`pull` / `push` / 衝突走對真實 Heptabase 的整合驗證。
 
 **Tech Stack:** Python 3.9+ stdlib only;官方 `heptabase` CLI 0.3.x;測試用 stdlib `unittest`。
 
@@ -21,16 +21,16 @@
 本計畫分三階段:
 
 - **Phase 0 — 結構落定**(Task 0):`git init`、解散 `poc/`、產品程式就位到 `v1/skill/scripts/`(DESIGN.md §9.3)。
-- **Phase 1 — 引擎修正(§8.7)**(Task 1–11):修掉 §8.7 的 8 條程式級修正事項(第 2 條為純文件修正,已完成),讓 `hs pull` / `hs push` 對 note 卡片雙向同步正確、有衝突偵測與處理、有 tag 3-way 同步。
-- **Phase 2 — 封裝與多平台(§9)**(Task 12–14):加 `hs doctor` 環境 preflight、寫三平台通用 `SKILL.md`、寫好各平台安裝。`v1/skill/` 在 Task 0 後即出貨形狀,**無 build 步驟**。
+- **Phase 1 — 引擎修正(§8.7)**(Task 1–11):修掉 §8.7 的 8 條程式級修正事項(第 2 條為純文件修正,已完成),讓 `hb pull` / `hb push` 對 note 卡片雙向同步正確、有衝突偵測與處理、有 tag 3-way 同步。
+- **Phase 2 — 封裝與多平台(§9)**(Task 12–14):加 `hb doctor` 環境 preflight、寫三平台通用 `SKILL.md`、寫好各平台安裝。`v1/skill/` 在 Task 0 後即出貨形狀,**無 build 步驟**。
 
-**仍不在範圍內**:新指令(`hs sync` / `status` / `trash` / `tags` / `init`),以及 §9.2 的全面結構化輸出(本計畫僅 `hs doctor` 先採結構化)。
+**仍不在範圍內**:新指令(`hb sync` / `status` / `trash` / `tags` / `init`),以及 §9.2 的全面結構化輸出(本計畫僅 `hb doctor` 先採結構化)。
 
 §8.7 對應:
 
 | §8.7 修正事項 | Task |
 |---|---|
-| 1. `_vault_root` 改探測 `.heptasync/` | Task 4, Task 7 |
+| 1. `_vault_root` 改探測 `.hbedit/` | Task 4, Task 7 |
 | 3. push 樂觀鎖失效 + 無衝突處理 | Task 8, Task 9 |
 | 4. `frontmatter.py` 配合新 schema | Task 1 |
 | 5. `pm2md.py` 有序清單序號 | Task 2 |
@@ -43,7 +43,7 @@
 | §9 章節 | Task |
 |---|---|
 | §9.3 結構落定(skill 目錄即 repo 目錄、`poc/` 解散) | Task 0 |
-| §9.4 `hs doctor` preflight | Task 12 |
+| §9.4 `hb doctor` preflight | Task 12 |
 | §9.3 通用 `SKILL.md` | Task 13 |
 | §9.3 三平台安裝 | Task 14 |
 
@@ -51,15 +51,15 @@
 
 | 檔案 | 動作 | 責任 |
 |---|---|---|
-| `v1/skill/scripts/` | 新增(Task 0) | `poc/` 解散後,7 個產品模組 + `hs` shim 的家 |
+| `v1/skill/scripts/` | 新增(Task 0) | `poc/` 解散後,7 個產品模組 + `hb` shim 的家 |
 | `v1/EXPERIMENTS.md` | 移入(Task 0) | 由 `poc/EXPERIMENTS.md` 搬入,保留實驗佐證 |
 | `v1/skill/scripts/frontmatter.py` | 修改 | v1 schema:`schemaVersion`、移除 `title` |
 | `v1/skill/scripts/pm2md.py` | 修改 | 有序清單序號遞增 |
 | `v1/skill/scripts/htb.py` | 修改 | `tag_remove` 改用 `--tag-id` |
 | `v1/skill/scripts/vault.py` | 新增 | vault 探測、以 cardId 找檔、`state.json` 讀寫 |
 | `v1/skill/scripts/tagsync.py` | 新增 | tag 3-way 合併、模糊比對 |
-| `v1/skill/scripts/hs.py` | 修改 | 重寫 `pull` / `push`,接上 `vault` / `tagsync`,加 `doctor` |
-| `v1/skill/scripts/hs` | 新增(Task 0) | `#!/usr/bin/env python3` shim,import 同目錄 `hs.py` |
+| `v1/skill/scripts/hbedit.py` | 修改 | 重寫 `pull` / `push`,接上 `vault` / `tagsync`,加 `doctor` |
+| `v1/skill/scripts/hb` | 新增(Task 0) | `#!/usr/bin/env python3` shim,import 同目錄 `hbedit.py` |
 | `v1/tests/test_*.py` | 新增 | `frontmatter` / `pm2md` / `htb` / `vault` / `tagsync` / `doctor` 單元測試 |
 | `v1/skill/SKILL.md` | 重寫 | 三平台通用 skill:合約本體 + preflight 規範(Phase 2) |
 | `v1/INSTALL.md` | 新增 | 三平台安裝說明(Phase 2) |
@@ -75,10 +75,10 @@
 
 **Files:**
 - Create: `v1/skill/scripts/`
-- Move: `v1/hs.py`、`v1/frontmatter.py`、`poc/pm2md.py`、`poc/transplant.py`、`poc/htb.py` → `v1/skill/scripts/`
+- Move: `v1/hbedit.py`、`v1/frontmatter.py`、`poc/pm2md.py`、`poc/transplant.py`、`poc/htb.py` → `v1/skill/scripts/`
 - Move: `poc/EXPERIMENTS.md` → `v1/EXPERIMENTS.md`;Delete: `poc/` 其餘實驗腳本
-- Create: `v1/skill/scripts/hs`
-- Modify: `v1/skill/scripts/hs.py`(import bootstrap)
+- Create: `v1/skill/scripts/hb`
+- Modify: `v1/skill/scripts/hbedit.py`(import bootstrap)
 
 DESIGN.md §9.3:`v1/skill/` 直接以可出貨形狀存在於 repo,無 build 步驟;產品程式放 `scripts/`(Anthropic skill 慣例);POC 已完成,`poc/` 解散。(`DESIGN.md` 內的 `poc/` 引用已於設計階段更新。)
 
@@ -94,15 +94,15 @@ git commit -m "chore: snapshot before v1 restructure (preserves poc/ in history)
 
 ```bash
 mkdir -p v1/skill/scripts
-git mv v1/hs.py v1/frontmatter.py v1/skill/scripts/
+git mv v1/hbedit.py v1/frontmatter.py v1/skill/scripts/
 git mv poc/pm2md.py poc/transplant.py poc/htb.py v1/skill/scripts/
 git mv poc/EXPERIMENTS.md v1/EXPERIMENTS.md
 git rm -r poc
 ```
 
-- [ ] **Step 3: 修 `hs.py` 的 import bootstrap**
+- [ ] **Step 3: 修 `hbedit.py` 的 import bootstrap**
 
-`v1/skill/scripts/hs.py` 開頭現行(約 :23-30):
+`v1/skill/scripts/hbedit.py` 開頭現行(約 :23-30):
 
 ```python
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -117,30 +117,30 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)                                 # all modules co-located
 ```
 
-- [ ] **Step 4: 建立 `v1/skill/scripts/hs` 可執行 shim**
+- [ ] **Step 4: 建立 `v1/skill/scripts/hb` 可執行 shim**
 
-`scripts/hs`(無副檔名)以 `realpath` 自我定位、把自己的目錄加進 `sys.path`、import 同目錄的 `hs.py` 並呼叫 `main`:
+`scripts/hb`(無副檔名)以 `realpath` 自我定位、把自己的目錄加進 `sys.path`、import 同目錄的 `hbedit.py` 並呼叫 `main`:
 
 ```bash
-cat > v1/skill/scripts/hs <<'EOF'
+cat > v1/skill/scripts/hb <<'EOF'
 #!/usr/bin/env python3
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-import hs
-sys.exit(hs.main(sys.argv))
+import hbedit
+sys.exit(hbedit.main(sys.argv))
 EOF
-chmod +x v1/skill/scripts/hs
+chmod +x v1/skill/scripts/hb
 ```
 
 - [ ] **Step 5: 驗證**
 
 ```bash
-python3 v1/skill/scripts/hs.py 2>&1 | head -3
-./v1/skill/scripts/hs 2>&1 | head -3
+python3 v1/skill/scripts/hbedit.py 2>&1 | head -3
+./v1/skill/scripts/hb 2>&1 | head -3
 test ! -d poc && echo "poc/ removed"
 ```
 
-Expected:`hs.py` 與 `bin/hs` 都印出用法說明、無 `ImportError`;`poc/` 已不存在。
+Expected:`hbedit.py` 與 `bin/hb` 都印出用法說明、無 `ImportError`;`poc/` 已不存在。
 
 - [ ] **Step 6: Commit**
 
@@ -190,7 +190,7 @@ class TestV1Schema(unittest.TestCase):
                "  cardId: abc\n"
                "  type: note\n"
                "  tags:\n"
-               "    - HeptaSync\n"
+               "    - hbedit\n"
                "  whiteboards: []\n"
                "  contentMd5: m\n"
                "  syncedAt: 2026-01-01T00:00:00Z\n"
@@ -508,9 +508,9 @@ import vault
 
 
 class TestVaultDiscovery(unittest.TestCase):
-    def test_find_vault_root_walks_up_to_heptasync_dir(self):
+    def test_find_vault_root_walks_up_to_hbedit_dir(self):
         with tempfile.TemporaryDirectory() as root:
-            os.makedirs(os.path.join(root, ".heptasync"))
+            os.makedirs(os.path.join(root, ".hbedit"))
             deep = os.path.join(root, "notes", "sub")
             os.makedirs(deep)
             f = os.path.join(deep, "x.md")
@@ -548,9 +548,9 @@ Expected: FAIL — `ModuleNotFoundError: No module named 'vault'`。
 - [ ] **Step 3: 建立 `v1/skill/scripts/vault.py`**
 
 ```python
-"""HeptaSync v1 — vault layer: discovery, card->file lookup, sync state.
+"""hbedit v1 — vault layer: discovery, card->file lookup, sync state.
 
-The vault root is the nearest ancestor directory containing `.heptasync/`
+The vault root is the nearest ancestor directory containing `.hbedit/`
 (the same idea as git locating `.git/`). See DESIGN.md §8.2.
 """
 from __future__ import annotations
@@ -560,12 +560,12 @@ import os
 
 import frontmatter
 
-STATE_DIR = ".heptasync"
+STATE_DIR = ".hbedit"
 STATE_FILE = "state.json"
 
 
 def find_vault_root(start):
-    """Walk up from `start` (a file or dir) to the dir holding `.heptasync/`.
+    """Walk up from `start` (a file or dir) to the dir holding `.hbedit/`.
     Returns the vault root path, or None if no vault encloses `start`."""
     d = os.path.abspath(start)
     if os.path.isfile(d):
@@ -627,7 +627,7 @@ git commit -m "feat(vault): vault discovery and card-id file lookup"
 class TestVaultState(unittest.TestCase):
     def test_tag_base_round_trips(self):
         with tempfile.TemporaryDirectory() as root:
-            os.makedirs(os.path.join(root, ".heptasync"))
+            os.makedirs(os.path.join(root, ".hbedit"))
             self.assertEqual(vault.get_tag_base(root, "CID-1"), [])
             vault.set_tag_base(root, "CID-1", ["work", "urgent"])
             self.assertEqual(
@@ -648,7 +648,7 @@ Expected: FAIL — `vault` 無 `get_tag_base` / `set_tag_base`。
 在檔尾追加:
 
 ```python
-# -- sync state (.heptasync/state.json) -----------------------------------
+# -- sync state (.hbedit/state.json) -----------------------------------
 def _state_path(vault):
     return os.path.join(vault, STATE_DIR, STATE_FILE)
 
@@ -736,16 +736,16 @@ class TestMergeTags(unittest.TestCase):
 class TestFuzzy(unittest.TestCase):
     def test_typo_finds_similar(self):
         self.assertEqual(
-            tagsync.find_similar_tag("Heptasync", ["HeptaSync", "work"]),
-            "HeptaSync")
+            tagsync.find_similar_tag("Hbedit", ["hbedit", "work"]),
+            "hbedit")
 
     def test_exact_match_is_not_ambiguous(self):
         self.assertIsNone(
-            tagsync.find_similar_tag("HeptaSync", ["HeptaSync", "work"]))
+            tagsync.find_similar_tag("hbedit", ["hbedit", "work"]))
 
     def test_genuinely_new_tag_has_no_match(self):
         self.assertIsNone(
-            tagsync.find_similar_tag("quarterly", ["HeptaSync", "work"]))
+            tagsync.find_similar_tag("quarterly", ["hbedit", "work"]))
 
 
 if __name__ == "__main__":
@@ -760,7 +760,7 @@ Expected: FAIL — `ModuleNotFoundError: No module named 'tagsync'`。
 - [ ] **Step 3: 建立 `v1/skill/scripts/tagsync.py`**
 
 ```python
-"""HeptaSync v1 — tag 3-way merge and fuzzy-match guard. See DESIGN.md §8.5."""
+"""hbedit v1 — tag 3-way merge and fuzzy-match guard. See DESIGN.md §8.5."""
 from __future__ import annotations
 
 import difflib
@@ -814,16 +814,16 @@ git commit -m "feat(tagsync): 3-way tag merge and fuzzy-match guard"
 
 ---
 
-## Task 7: `hs.py` 重寫 `pull` — 就地更新 + tag + 新 schema
+## Task 7: `hbedit.py` 重寫 `pull` — 就地更新 + tag + 新 schema
 
 **Files:**
-- Modify: `v1/skill/scripts/hs.py`(imports :27-30;`_vault_root` :38-41;`_slug` :50-52;`pull` :96-106)
+- Modify: `v1/skill/scripts/hbedit.py`(imports :27-30;`_vault_root` :38-41;`_slug` :50-52;`pull` :96-106)
 
 修正 §8.7 第 1、6、7(pull 方向)條:`pull` 改以 cardId 找既有檔就地更新、補同步 tag、用新 schema。
 
 - [ ] **Step 1: 接上 `vault` / `tagsync` 模組**
 
-在 `v1/skill/scripts/hs.py` 的 import 區(`import transplant` 之後)加入:
+在 `v1/skill/scripts/hbedit.py` 的 import 區(`import transplant` 之後)加入:
 
 ```python
 import vault as vaultlib   # noqa: E402
@@ -851,7 +851,7 @@ def _slug_path(notes_dir, title, card_id):
 
 ```python
 def pull(card_id, vault):
-    """Pull a Heptabase card into the vault as a HeptaSync note.
+    """Pull a Heptabase card into the vault as a hbedit note.
 
     If a file for this cardId already exists, it is updated in place (the
     filename never auto-changes — DESIGN.md §8.3). Otherwise a slug-named
@@ -891,7 +891,7 @@ def pull(card_id, vault):
 
 ```bash
 ls vault/notes/
-python3 v1/skill/scripts/hs.py pull 993aa0e2-9af8-4897-98b5-35b5a334cf3b vault
+python3 v1/skill/scripts/hbedit.py pull 993aa0e2-9af8-4897-98b5-35b5a334cf3b vault
 ls vault/notes/
 grep -A2 "tags:" vault/notes/semantics-design.md
 ```
@@ -899,21 +899,21 @@ grep -A2 "tags:" vault/notes/semantics-design.md
 Expected:
 - pull 後 `vault/notes/` **沒有**新增 `heptasync-v1-…白話版.md` —— 仍是 `heptasync.md` 與 `semantics-design.md`。
 - `semantics-design.md` 的 frontmatter `tags:` 列出 `HeptaSync`(非 `[]`)。
-- `vault/.heptasync/state.json` 出現該 cardId 的 `tags` 條目。
+- `vault/.hbedit/state.json` 出現該 cardId 的 `tags` 條目。
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add v1/skill/scripts/hs.py
-git commit -m "fix(hs): pull updates the existing file in place and syncs tags down"
+git add v1/skill/scripts/hbedit.py
+git commit -m "fix(hb): pull updates the existing file in place and syncs tags down"
 ```
 
 ---
 
-## Task 8: `hs.py` 重寫 `push` — 修正樂觀鎖
+## Task 8: `hbedit.py` 重寫 `push` — 修正樂觀鎖
 
 **Files:**
-- Modify: `v1/skill/scripts/hs.py`(`push` :60-93)
+- Modify: `v1/skill/scripts/hbedit.py`(`push` :60-93)
 
 修正 §8.7 第 3 條(鎖):樂觀鎖改用 frontmatter 裡「上次 pull 的 `contentMd5`」,不再重新 `note read` 取當下值。本 Task 先不做衝突處理(讓 `HtbError` 往上拋),Task 9 補。
 
@@ -921,13 +921,13 @@ git commit -m "fix(hs): pull updates the existing file in place and syncs tags d
 
 ```python
 def push(path):
-    """Sync a local HeptaSync note file up to Heptabase."""
+    """Sync a local hbedit note file up to Heptabase."""
     meta, body = frontmatter.parse(open(path, encoding="utf-8").read())
     hb = meta.get(frontmatter.MANAGED_KEY, {})
     card_id = hb.get("cardId")
     vault = vaultlib.find_vault_root(path)
     if vault is None:
-        raise SystemExit("push: %s is not inside a HeptaSync vault" % path)
+        raise SystemExit("push: %s is not inside a hbedit vault" % path)
 
     if not card_id:
         # --- new note: Heptabase converts the markdown for us ------------
@@ -974,7 +974,7 @@ htb.note_append("993aa0e2-9af8-4897-98b5-35b5a334cf3b",
                 "\n樂觀鎖驗證行。\n")
 print("remote advanced")
 EOF
-python3 v1/skill/scripts/hs.py push vault/notes/semantics-design.md ; echo "exit=$?"
+python3 v1/skill/scripts/hbedit.py push vault/notes/semantics-design.md ; echo "exit=$?"
 ```
 
 Expected: `push` **失敗**並拋出含 `Content conflict` 的 `HtbError`(exit 非 0)—— 證明鎖已生效(對比修正前會靜默成功覆寫)。Task 9 會把這個錯誤轉成正常的衝突處理。
@@ -982,16 +982,16 @@ Expected: `push` **失敗**並拋出含 `Content conflict` 的 `HtbError`(exit �
 - [ ] **Step 3: Commit**
 
 ```bash
-git add v1/skill/scripts/hs.py
-git commit -m "fix(hs): push optimistic lock uses the last-pull contentMd5"
+git add v1/skill/scripts/hbedit.py
+git commit -m "fix(hb): push optimistic lock uses the last-pull contentMd5"
 ```
 
 ---
 
-## Task 9: `hs.py` `push` — 衝突處理
+## Task 9: `hbedit.py` `push` — 衝突處理
 
 **Files:**
-- Modify: `v1/skill/scripts/hs.py`(`push`)
+- Modify: `v1/skill/scripts/hbedit.py`(`push`)
 
 修正 §8.7 第 3 條(處理):偵測 `Content conflict` → 備份 `<slug>.conflict.md`、重新 pull 遠端覆蓋工作檔、回報(DESIGN.md §8.4)。
 
@@ -1049,7 +1049,7 @@ def _handle_conflict(path, local_body, vault, card_id):
 需 Heptabase app 開著。沿用 Task 8 Step 2 製造的 stale 狀態(若已乾淨,先 `note_append` 改遠端再本地 `Edit` 一行):
 
 ```bash
-python3 v1/skill/scripts/hs.py push vault/notes/semantics-design.md ; echo "exit=$?"
+python3 v1/skill/scripts/hbedit.py push vault/notes/semantics-design.md ; echo "exit=$?"
 ls vault/notes/
 ```
 
@@ -1061,16 +1061,16 @@ Expected:
 - [ ] **Step 4: Commit**
 
 ```bash
-git add v1/skill/scripts/hs.py
-git commit -m "feat(hs): push detects Content conflict and backs up to .conflict.md"
+git add v1/skill/scripts/hbedit.py
+git commit -m "feat(hb): push detects Content conflict and backs up to .conflict.md"
 ```
 
 ---
 
-## Task 10: `hs.py` `push` — tag 3-way 同步
+## Task 10: `hbedit.py` `push` — tag 3-way 同步
 
 **Files:**
-- Modify: `v1/skill/scripts/hs.py`(`push`)
+- Modify: `v1/skill/scripts/hbedit.py`(`push`)
 
 修正 §8.7 第 7 條(push 方向):push 成功後做 tag 3-way 同步。新 tag 與既有 tag 模糊相近時中止並回報(§8.5 防呆;互動式詢問屬 §9 後續計畫)。
 
@@ -1138,11 +1138,11 @@ def _sync_tags(vault, card_id, local_tags):
 ```bash
 # (a) 正常同步:在 frontmatter tags: 加一個全新 tag,push,確認卡片掛上
 #     先用編輯器在 vault/notes/semantics-design.md 的 tags: 下加 "- pushtagtest"
-python3 v1/skill/scripts/hs.py push vault/notes/semantics-design.md ; echo "exit=$?"
+python3 v1/skill/scripts/hbedit.py push vault/notes/semantics-design.md ; echo "exit=$?"
 heptabase card properties 993aa0e2-9af8-4897-98b5-35b5a334cf3b | grep -i tag
 
 # (b) 防呆:把 tags: 的 "HeptaSync" 改成 "Heptasync"(小寫 s),push
-python3 v1/skill/scripts/hs.py push vault/notes/semantics-design.md ; echo "exit=$?"
+python3 v1/skill/scripts/hbedit.py push vault/notes/semantics-design.md ; echo "exit=$?"
 ```
 
 Expected:
@@ -1153,8 +1153,8 @@ Expected:
 - [ ] **Step 4: Commit**
 
 ```bash
-git add v1/skill/scripts/hs.py
-git commit -m "feat(hs): push syncs tags 3-way with fuzzy-match guard"
+git add v1/skill/scripts/hbedit.py
+git commit -m "feat(hb): push syncs tags 3-way with fuzzy-match guard"
 ```
 
 ---
@@ -1168,16 +1168,16 @@ git commit -m "feat(hs): push syncs tags 3-way with fuzzy-match guard"
 - [ ] **Step 1: 建立乾淨測試檔並首次 push**
 
 ```bash
-mkdir -p vault-e2e/.heptasync vault-e2e/notes
+mkdir -p vault-e2e/.hbedit vault-e2e/notes
 cat > vault-e2e/notes/e2e.md <<'EOF'
-# HeptaSync E2E 測試卡
+# hbedit E2E 測試卡
 
 ## 步驟
 1. 第一步
 2. 第二步
 3. 第三步
 EOF
-python3 v1/skill/scripts/hs.py push vault-e2e/notes/e2e.md ; echo "exit=$?"
+python3 v1/skill/scripts/hbedit.py push vault-e2e/notes/e2e.md ; echo "exit=$?"
 ```
 
 Expected:exit 0、回報 `created`;`e2e.md` 取得 `heptabase:` frontmatter,含 `schemaVersion: 1`、新 `cardId`、無 `title` 欄位。
@@ -1186,7 +1186,7 @@ Expected:exit 0、回報 `created`;`e2e.md` 取得 `heptabase:` frontmatter,含 
 
 ```bash
 CID=$(python3 -c "import sys; sys.path.insert(0,'v1/skill/scripts'); import frontmatter; m,_=frontmatter.parse(open('vault-e2e/notes/e2e.md').read()); print(m['heptabase']['cardId'])")
-python3 v1/skill/scripts/hs.py pull "$CID" vault-e2e
+python3 v1/skill/scripts/hbedit.py pull "$CID" vault-e2e
 ls vault-e2e/notes/
 grep -n "步" vault-e2e/notes/e2e.md
 ```
@@ -1203,7 +1203,7 @@ m,_=frontmatter.parse(open('vault-e2e/notes/e2e.md').read()); \
 htb.note_append(m['heptabase']['cardId'], '\n遠端撞車行。\n')"
 # 本地也改一行
 printf '\n本地撞車行。\n' >> vault-e2e/notes/e2e.md
-python3 v1/skill/scripts/hs.py push vault-e2e/notes/e2e.md ; echo "exit=$?"
+python3 v1/skill/scripts/hbedit.py push vault-e2e/notes/e2e.md ; echo "exit=$?"
 ls vault-e2e/notes/
 ```
 
@@ -1234,12 +1234,12 @@ git commit -m "test: end-to-end verification of v1 push/pull/conflict fixes"
 
 # Phase 2 — 封裝與多平台(§9)
 
-> Phase 2 在 Phase 1 完成(引擎正確)後進行。產物:三平台(Claude Code / Codex CLI / opencode)通用、可安裝的 HeptaSync Agent Skill。Task 0 後 `v1/skill/` 已是出貨形狀,故 Phase 2 只剩 preflight、`SKILL.md`、安裝三件事。
+> Phase 2 在 Phase 1 完成(引擎正確)後進行。產物:三平台(Claude Code / Codex CLI / opencode)通用、可安裝的 hbedit Agent Skill。Task 0 後 `v1/skill/` 已是出貨形狀,故 Phase 2 只剩 preflight、`SKILL.md`、安裝三件事。
 
-## Task 12: `hs doctor` 環境 preflight
+## Task 12: `hb doctor` 環境 preflight
 
 **Files:**
-- Modify: `v1/skill/scripts/hs.py`(加 `_version_supported`、`doctor`,並在 `main` 加子指令)
+- Modify: `v1/skill/scripts/hbedit.py`(加 `_version_supported`、`doctor`,並在 `main` 加子指令)
 - Test: `v1/tests/test_doctor.py`
 
 DESIGN.md §9.4:同步前檢查 Heptabase CLI 是否安裝、版本相容、app 是否運行。
@@ -1253,21 +1253,21 @@ import os, sys, unittest
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(_ROOT, "v1", "skill", "scripts"))
-import hs
+import hbedit
 
 
 class TestVersionGate(unittest.TestCase):
     def test_supported_minor(self):
-        self.assertTrue(hs._version_supported("0.3.0"))
-        self.assertTrue(hs._version_supported("0.3.9"))
+        self.assertTrue(hbedit._version_supported("0.3.0"))
+        self.assertTrue(hbedit._version_supported("0.3.9"))
 
     def test_unsupported_minor(self):
-        self.assertFalse(hs._version_supported("0.2.9"))
-        self.assertFalse(hs._version_supported("0.4.0"))
+        self.assertFalse(hbedit._version_supported("0.2.9"))
+        self.assertFalse(hbedit._version_supported("0.4.0"))
 
     def test_garbage(self):
-        self.assertFalse(hs._version_supported(""))
-        self.assertFalse(hs._version_supported("not-a-version"))
+        self.assertFalse(hbedit._version_supported(""))
+        self.assertFalse(hbedit._version_supported("not-a-version"))
 
 
 if __name__ == "__main__":
@@ -1277,9 +1277,9 @@ if __name__ == "__main__":
 - [ ] **Step 2: 執行,確認失敗**
 
 Run: `python3 v1/tests/test_doctor.py`
-Expected: FAIL — `hs` 無 `_version_supported`(`AttributeError`)。
+Expected: FAIL — `hb` 無 `_version_supported`(`AttributeError`)。
 
-- [ ] **Step 3: 在 `hs.py` 加 `_version_supported` 與 `doctor`**
+- [ ] **Step 3: 在 `hbedit.py` 加 `_version_supported` 與 `doctor`**
 
 在 `main` 之前加入(`SUPPORTED_RANGE` 與官方 `heptabase-cli` skill 的 `0.3.x` 一致):
 
@@ -1330,7 +1330,7 @@ Expected: PASS（3 tests）。
 需 Heptabase app 開著。
 
 ```bash
-python3 v1/skill/scripts/hs.py doctor ; echo "exit=$?"
+python3 v1/skill/scripts/hbedit.py doctor ; echo "exit=$?"
 ```
 
 Expected:印出 `{"command": "doctor", "status": "ok", "detail": "heptabase 0.3.0, ..."}`,exit 0。(可選:關掉 app 再跑 → `status` 為 `app-not-running`、exit 2。)
@@ -1338,8 +1338,8 @@ Expected:印出 `{"command": "doctor", "status": "ok", "detail": "heptabase 0.3.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add v1/skill/scripts/hs.py v1/tests/test_doctor.py
-git commit -m "feat(hs): hs doctor preflight (CLI presence, version, app reachability)"
+git add v1/skill/scripts/hbedit.py v1/tests/test_doctor.py
+git commit -m "feat(hb): hb doctor preflight (CLI presence, version, app reachability)"
 ```
 
 ---
@@ -1349,7 +1349,7 @@ git commit -m "feat(hs): hs doctor preflight (CLI presence, version, app reachab
 **Files:**
 - Rewrite: `v1/skill/SKILL.md`
 
-DESIGN.md §9.3:`v1/skill/` 即產品,Task 0 已就位 `lib/` 與 `bin/hs`;本 Task 只剩把 `SKILL.md` 寫成三平台通用的決策合約。**無 build 步驟、無 `dist/`。**
+DESIGN.md §9.3:`v1/skill/` 即產品,Task 0 已就位 `lib/` 與 `bin/hb`;本 Task 只剩把 `SKILL.md` 寫成三平台通用的決策合約。**無 build 步驟、無 `dist/`。**
 
 - [ ] **Step 1: 重寫 `v1/skill/SKILL.md` 為通用合約**
 
@@ -1357,33 +1357,33 @@ DESIGN.md §9.3:`v1/skill/` 即產品,Task 0 已就位 `lib/` 與 `bin/hs`;本 T
 
 ```markdown
 ---
-name: heptasync
+name: hbedit
 description: Edit and reorganize existing Heptabase note cards via a local-markdown workflow — pull a card to a .md file, edit it as plain text, push it back. Handles edits to the middle of a card, which the raw heptabase CLI cannot do. UNOFFICIAL — not affiliated with Heptabase.
 ---
 
-# HeptaSync (unofficial)
+# hbedit (unofficial)
 
 > UNOFFICIAL community tool. Built only on the official `heptabase` CLI;
 > never touches Heptabase's database or internal files.
 
 ## Step 0 — preflight (MANDATORY)
 
-Before any sync, run `hs doctor`. If `status` is not `ok`, STOP and tell the
+Before any sync, run `hb doctor`. If `status` is not `ok`, STOP and tell the
 user what its `detail` says (install the CLI / update it / start the app).
 Never attempt a pull or push when doctor is not `ok`.
 
 ## Workflow
 
-- `hs pull <cardId>` — card → a local `.md` file.
+- `hb pull <cardId>` — card → a local `.md` file.
 - edit the `.md` body with ordinary file tools (never edit the `heptabase:`
   frontmatter).
-- `hs push <file>` — the edited `.md` → back into the same card.
+- `hb push <file>` — the edited `.md` → back into the same card.
 
 For a plain new card or an append, use the official `heptabase` CLI directly.
 
-## hs status → action contract
+## hb status → action contract
 
-| `hs` status | agent action |
+| `hb` status | agent action |
 |---|---|
 | `ok` | proceed |
 | `cli-missing` / `cli-version-unsupported` / `app-not-running` | STOP; relay `detail` to the user |
@@ -1397,12 +1397,12 @@ For a plain new card or an append, use the official `heptabase` CLI directly.
 - [ ] **Step 2: 驗證 skill 目錄完整可用**
 
 ```bash
-./v1/skill/scripts/hs doctor ; echo "exit=$?"
+./v1/skill/scripts/hb doctor ; echo "exit=$?"
 head -4 v1/skill/SKILL.md
 ls v1/skill v1/skill/lib v1/skill/scripts
 ```
 
-Expected:`bin/hs doctor` 跑得起來(app 開著回 `status: ok`);`SKILL.md` 開頭是 `name` / `description` frontmatter;`v1/skill/` 含 `SKILL.md` + `lib/`(7 個 `.py`)+ `bin/hs` —— 已是完整、可直接安裝的 skill 目錄。
+Expected:`bin/hb doctor` 跑得起來(app 開著回 `status: ok`);`SKILL.md` 開頭是 `name` / `description` frontmatter;`v1/skill/` 含 `SKILL.md` + `lib/`(7 個 `.py`)+ `bin/hb` —— 已是完整、可直接安裝的 skill 目錄。
 
 - [ ] **Step 3: Commit**
 
@@ -1419,7 +1419,7 @@ git commit -m "feat(skill): universal SKILL.md decision contract"
 - Create: `v1/INSTALL.md`
 - Create(選配): `.claude-plugin/plugin.json`、`.claude-plugin/marketplace.json`
 
-`v1/skill/` 本身就是要安裝的目錄。安裝 = 複製它到各工具的 skill 路徑 + 讓 `bin/hs` 上 PATH。
+`v1/skill/` 本身就是要安裝的目錄。安裝 = 複製它到各工具的 skill 路徑 + 讓 `bin/hb` 上 PATH。
 
 - [ ] **Step 1: Claude Code plugin manifest**
 
@@ -1427,7 +1427,7 @@ git commit -m "feat(skill): universal SKILL.md decision contract"
 
 ```json
 {
-  "name": "heptasync",
+  "name": "hbedit",
   "description": "Edit and reorganize existing Heptabase note cards via a local-markdown pull/edit/push workflow. UNOFFICIAL — not affiliated with Heptabase.",
   "version": "0.1.0",
   "author": { "name": "davidleitw", "email": "davidleitw@gmail.com" },
@@ -1440,13 +1440,13 @@ git commit -m "feat(skill): universal SKILL.md decision contract"
 
 ```json
 {
-  "name": "heptasync-marketplace",
+  "name": "hbedit-marketplace",
   "owner": { "name": "davidleitw" },
-  "description": "HeptaSync — unofficial Heptabase note-editing skill",
+  "description": "hbedit — unofficial Heptabase note-editing skill",
   "plugins": [
     {
-      "name": "heptasync",
-      "source": { "source": "github", "repo": "davidleitw/heptasync", "ref": "main" },
+      "name": "hbedit",
+      "source": { "source": "github", "repo": "davidleitw/hbedit", "ref": "main" },
       "description": "Pull / edit / push existing Heptabase note cards"
     }
   ]
@@ -1456,26 +1456,26 @@ git commit -m "feat(skill): universal SKILL.md decision contract"
 - [ ] **Step 2: 寫 `v1/INSTALL.md`**
 
 ```markdown
-# 安裝 HeptaSync
+# 安裝 hbedit
 
 先決:Python 3.9+、官方 `heptabase` CLI(0.3.x)、Heptabase 桌面 app。
-HeptaSync 的 skill 目錄就是 repo 裡的 `v1/skill/` —— 沒有 build 步驟。
+hbedit 的 skill 目錄就是 repo 裡的 `v1/skill/` —— 沒有 build 步驟。
 
 ## Claude Code
-手動:`cp -r v1/skill ~/.claude/skills/heptasync`。
+手動:`cp -r v1/skill ~/.claude/skills/hbedit`。
 或用 plugin marketplace(見 Step 1 的 manifest):
-`/plugin marketplace add davidleitw/heptasync` →
-`/plugin install heptasync@heptasync-marketplace`。
+`/plugin marketplace add davidleitw/hbedit` →
+`/plugin install hbedit@hbedit-marketplace`。
 
 ## Codex CLI
-    cp -r v1/skill ~/.agents/skills/heptasync
-    ln -s ~/.agents/skills/heptasync/bin/hs ~/.local/bin/hs
+    cp -r v1/skill ~/.agents/skills/hbedit
+    ln -s ~/.agents/skills/hbedit/bin/hb ~/.local/bin/hb
 
 ## opencode
-    cp -r v1/skill ~/.config/opencode/skills/heptasync
-    ln -s ~/.config/opencode/skills/heptasync/bin/hs ~/.local/bin/hs
+    cp -r v1/skill ~/.config/opencode/skills/hbedit
+    ln -s ~/.config/opencode/skills/hbedit/bin/hb ~/.local/bin/hb
 
-裝完在任一工具裡跑 `hs doctor`,確認回 `status: ok`。
+裝完在任一工具裡跑 `hb doctor`,確認回 `status: ok`。
 ```
 
 - [ ] **Step 3: 驗證 manifest 合法**

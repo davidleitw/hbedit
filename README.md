@@ -1,4 +1,4 @@
-# HeptaSync
+# hbedit
 
 > **Unofficial.** Not made by or affiliated with Heptabase. Built entirely on
 > top of the official `heptabase` CLI — it never touches Heptabase's database
@@ -13,18 +13,18 @@ Here's the gap. The official `heptabase` CLI can **create** a card, and it can
 **middle** of an existing card from plain text. So an AI agent can help you
 *add* to your notes, but not *clean them up*.
 
-HeptaSync fixes that. It lets you (or an agent) treat a Heptabase card like an
+hbedit fixes that. It lets you (or an agent) treat a Heptabase card like an
 ordinary markdown file: pull it down, edit it however you like with normal
 text tools, push it back. Same card, same identity — just rewritten.
 
 So when you want to "tidy up that messy note", "reorder these sections", or
-"fix the formatting across all my LeetCode cards" — that's what HeptaSync is
+"fix the formatting across all my LeetCode cards" — that's what hbedit is
 for. If you just want a brand-new card or to append a line, use the official
 CLI directly; it's simpler.
 
 ## How do you use it?
 
-HeptaSync ships as an **Agent Skill** — it works inside Claude Code, Codex
+hbedit ships as an **Agent Skill** — it works inside Claude Code, Codex
 CLI, and opencode.
 
 Once it's installed (see **[`v1/INSTALL.md`](./v1/INSTALL.md)**), you don't
@@ -32,14 +32,14 @@ run anything special. Just talk to your agent in plain language:
 
 > "Pull my 'Reading list' card and reorganize it by topic."
 
-The agent recognizes this as a HeptaSync job and takes over. Under the hood
+The agent recognizes this as an hbedit job and takes over. Under the hood
 it runs three commands:
 
 ```
-hs doctor                  # check the environment is OK
-hs pull <cardId> <vault>   # card  ->  a local .md file
+hb doctor                  # check the environment is OK
+hb pull <cardId> <vault>   # card  ->  a local .md file
 #   ... edit the .md ...
-hs push <file>             # .md   ->  back into the same card
+hb push <file>             # .md   ->  back into the same card
 ```
 
 You can also run those yourself in a terminal if you'd rather drive it by hand.
@@ -49,23 +49,23 @@ You can also run those yourself in a terminal if you'd rather drive it by hand.
 The tricky part is **push**. Heptabase stores cards in its own internal format
 (ProseMirror JSON), not markdown — so you can't just hand it your edited text.
 
-HeptaSync's trick: it lets **Heptabase itself** do the conversion.
+hbedit's trick: it lets **Heptabase itself** do the conversion.
 
 1. **Pull** — read the card, convert its internal JSON into clean markdown,
    and save it as a local `.md` file (with a tiny hidden header that remembers
    which card it belongs to).
 2. **Push** — take your edited markdown and ask Heptabase to build a
    *throwaway* card from it. Now Heptabase has done the markdown→internal
-   conversion for you. HeptaSync then "transplants" the original card's block
+   conversion for you. hbedit then "transplants" the original card's block
    IDs onto the matching blocks, saves that into the real card, and deletes
    the throwaway.
 
-The upshot: HeptaSync never has to understand Heptabase's internal format
+The upshot: hbedit never has to understand Heptabase's internal format
 itself. And because the block IDs are preserved, links and references that
 point into the card don't break.
 
 Two safety nets worth knowing: every push first checks whether the card
-changed underneath you — if it did, HeptaSync backs up your version to a
+changed underneath you — if it did, hbedit backs up your version to a
 `.conflict.md` file instead of clobbering it. And it talks **only** to the
 official `heptabase` CLI — never to Heptabase's database or files directly.
 

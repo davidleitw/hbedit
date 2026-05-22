@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""HeptaSync — minimal sync entry point (v1).
+"""hbedit — minimal CLI entry point (v1).
 
-  hs.py push <file.md>        sync a local HeptaSync note up to Heptabase
-  hs.py pull <cardId> <vault> pull a card down into <vault>/notes/
+  hb push <file.md>        sync a local hbedit note up to Heptabase
+  hb pull <cardId> <vault> pull a card down into <vault>/notes/
 
 UNOFFICIAL — not affiliated with Heptabase. Talks only to the official
 `heptabase` CLI; never touches Heptabase's database or internal files.
 
-A HeptaSync note is plain markdown with a `heptabase:` frontmatter block.
+An hbedit note is plain markdown with a `heptabase:` frontmatter block.
 - No `cardId` in the frontmatter  -> push creates a new card.
 - A `cardId` present              -> push updates that card via the transplant
                                       strategy (block IDs are preserved).
@@ -38,7 +38,7 @@ def _now():
 
 
 def _sidecar_path(vault, card_id):
-    d = os.path.join(vault, ".heptasync", "sidecar")
+    d = os.path.join(vault, ".hbedit", "sidecar")
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, card_id + ".json")
 
@@ -70,14 +70,14 @@ def _write(path, text):
 
 
 def push(path):
-    """Sync a local HeptaSync note file up to Heptabase."""
+    """Sync a local hbedit note file up to Heptabase."""
     with open(path, encoding="utf-8") as fh:
         meta, body = frontmatter.parse(fh.read())
     hb = meta.get(frontmatter.MANAGED_KEY, {})
     card_id = hb.get("cardId")
     vault = vaultlib.find_vault_root(path)
     if vault is None:
-        raise SystemExit("push: %s is not inside a HeptaSync vault" % path)
+        raise SystemExit("push: %s is not inside an hbedit vault" % path)
 
     if not card_id:
         # --- new note: Heptabase converts the markdown for us ------------
@@ -137,7 +137,7 @@ def push(path):
 
 
 def pull(card_id, vault):
-    """Pull a Heptabase card into the vault as a HeptaSync note.
+    """Pull a Heptabase card into the vault as an hbedit note.
 
     If a file for this cardId already exists, it is updated in place (the
     filename never auto-changes — DESIGN.md §8.3). Otherwise a slug-named
@@ -241,7 +241,7 @@ def doctor():
     desktop app is running. Returns (status, detail). See DESIGN.md §9.4.
 
     Always returns a structured status — never lets a subprocess/OS error
-    escape as a traceback, since `hs doctor` is consumed as machine output."""
+    escape as a traceback, since `hb doctor` is consumed as machine output."""
     if shutil.which("heptabase") is None:
         return "cli-missing", "heptabase CLI not found on PATH"
     try:

@@ -1,4 +1,4 @@
-我在做一個叫 **HeptaSync** 的工具 —— 一個**非官方**的 Heptabase「本地 markdown ⇄ 卡片」同步層,打算最終包成一個 Claude Code skill。可行性 POC 已經做完(21 個實驗驗證 pull / push 都可行),最小的 `hs.py` 也能實際跑了。現在我想跟你**一起把「語意與使用者體驗設計」想清楚**,再進實作。
+我在做一個叫 **hbedit** 的工具 —— 一個**非官方**的 Heptabase「本地 markdown ⇄ 卡片」同步層,打算最終包成一個 Claude Code skill。可行性 POC 已經做完(21 個實驗驗證 pull / push 都可行),最小的 `hs.py` 也能實際跑了。現在我想跟你**一起把「語意與使用者體驗設計」想清楚**,再進實作。
 
 ## 第一步:先讀懂現況
 

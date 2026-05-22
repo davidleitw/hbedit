@@ -1,4 +1,4 @@
-# HeptaSync — 白話說明與批判檢視
+# hbedit — 白話說明與批判檢視
 
 > 給「知道做了很多實驗,但看不懂具體在幹嘛」的你。這張卡用白話講清楚:
 > 我們想做什麼、它會怎麼運作、實驗證明了什麼、以及它到底值不值得做。
@@ -23,11 +23,11 @@ Heptabase 有一個官方命令列工具(CLI),agent 可以透過它操作你的�
 積木格式 —— 手工拼很容易拼壞整張卡。
 
 **結果:agent 目前只能幫你「加東西」,不能真的幫你「整理 / 改寫」既有筆記。**
-這就是 HeptaSync 要補的洞。
+這就是 hbedit 要補的洞。
 
-## HeptaSync 想做的事 —— 你會怎麼用它
+## hbedit 想做的事 —— 你會怎麼用它
 
-HeptaSync 在你電腦上開一個資料夾,把 Heptabase 的筆記**鏡像成一堆純文字
+hbedit 在你電腦上開一個資料夾,把 Heptabase 的筆記**鏡像成一堆純文字
 `.md` 檔**:
 
 ```
@@ -39,7 +39,7 @@ my-vault/
 ```
 
 - agent(或你)直接編輯這些 `.md` 純文字檔 —— 最自然、最好操作的形式。
-- HeptaSync 把改動**推回** Heptabase,也把 Heptabase 上的改動**拉下來**。
+- hbedit 把改動**推回** Heptabase,也把 Heptabase 上的改動**拉下來**。
 - 每個 `.md` 檔最上面有一段隱藏標頭(frontmatter),記住「這個檔對應哪張
   Heptabase 卡片」。預覽 markdown 時這段標頭看不見。
 
@@ -99,7 +99,7 @@ agent 本來就能直接呼叫 CLI。對 agent 而言「改檔案」不見得比
 agent 把本地檔當成唯一真相在改,但有些東西其實沒同步上去,久了兩邊就會悄悄
 對不上。**錯的同步比沒有同步更糟。**
 
-**⚠️ Heptabase 本身已有自己的雲端同步。** 再疊一套 HeptaSync,等於有兩套同步
+**⚠️ Heptabase 本身已有自己的雲端同步。** 再疊一套 hbedit,等於有兩套同步
 系統,要小心互相打架。
 
 **⚠️ 維護成本。** CLI 介面會隨 Heptabase 更新改版,一個依賴 CLI 的常駐程式
@@ -122,7 +122,7 @@ agent 把本地檔當成唯一真相在改,但有些東西其實沒同步上去,
 
 ## 一句話總結
 
-> HeptaSync 想做的事**有真實價值** —— 它讓 AI 終於能「改寫」你的 Heptabase
+> hbedit 想做的事**有真實價值** —— 它讓 AI 終於能「改寫」你的 Heptabase
 > 筆記,而不只是「往後面加」。但不要一開始就做成全自動背景同步;先把「翻譯 +
 > 移植」做出來,再做「隨選 pull / push」,這樣風險最低、見效最快。
 
@@ -146,7 +146,7 @@ POC 不只是做實驗,它順手把 skill 的「引擎」做出來、而且驗�
 
 ### 二、還需要補的
 
-1. **一個真正的進入點命令** —— 像 `hs pull <卡片>` / `hs push <檔案>`。目前只有
+1. **一個真正的進入點命令** —— 像 `hb pull <卡片>` / `hb push <檔案>`。目前只有
    測試用的 `poc.py`,不是日常工具。skill 會叫 agent 跑這些。
 2. **狀態管理** —— sidecar(上次 pull 下來的原始 JSON,push 移植時要用)。
    skill 版可簡化:pull 時把 `.md` 和 sidecar 寫在一起。
@@ -167,7 +167,7 @@ POC 不只是做實驗,它順手把 skill 的「引擎」做出來、而且驗�
 
 ### skill 補的是什麼洞
 
-現有的 `heptabase-cli` skill 只能 **append / create**;HeptaSync skill 的賣點
+現有的 `heptabase-cli` skill 只能 **append / create**;hbedit skill 的賣點
 是它能**改寫既有卡片**。觸發情境 = 「使用者想整理 / 重寫既有的 Heptabase
 筆記」。做出來後,你其他的 skill(LeetCode、journal …)也能站在它上面 ——
 從「只能往後加」升級成「能改」。
@@ -181,11 +181,11 @@ agent 改 → push 回去。不需要 vault、不需要 daemon。先把這個做
 ### 小結
 
 > 最難的部分 ——「這套做法到底行不行」—— POC 已經回答了。剩下的是工程:把零件
-> 收尾、寫一個 `hs` 命令、寫 `SKILL.md`。**研究風險清掉了,剩下實作。**
+> 收尾、寫一個 `hb` 命令、寫 `SKILL.md`。**研究風險清掉了,剩下實作。**
 
 ## 如果做成 skill —— 運作方式與 SKILL.md 草稿
 
-以下是我設想的 HeptaSync skill 完整運作方式。寫法刻意**模擬官方
+以下是我設想的 hbedit skill 完整運作方式。寫法刻意**模擬官方
 `heptabase-cli` skill 的結構**(Prerequisites / Workflow / Known limitations /
 Warnings),但最上面用**顯眼的橫幅標示「非官方」** —— 使用者問起來時,agent
 就能明確回答:這是第三方社群工具,不是 Heptabase 官方做的,只透過官方 CLI
@@ -196,7 +196,7 @@ Warnings),但最上面用**顯眼的橫幅標示「非官方」** —— 使用�
 1. **觸發** —— 使用者說「幫我重寫 / 整理 / 重排某張卡」時載入這個 skill。
    (純 append / 新建不會觸發,那用官方 CLI 就夠。)
 2. **前置檢查** —— app 有開、`heptabase --version` 在支援範圍內。
-3. **Pull** —— `hs pull <cardId>`:卡片變成本地 `.md`,旁邊存一份 sidecar
+3. **Pull** —— `hb pull <cardId>`:卡片變成本地 `.md`,旁邊存一份 sidecar
    JSON(push 移植時要用)。
 4. **Edit** —— agent 用一般檔案工具改 `.md` 內文,不碰 frontmatter。
 5. **Push 前決策** —— 估 JSON 大小、查衝突、判斷是 append-only 還是改中間。

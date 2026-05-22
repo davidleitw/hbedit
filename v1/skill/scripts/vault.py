@@ -1,6 +1,6 @@
-"""HeptaSync v1 — vault layer: discovery, card->file lookup, sync state.
+"""hbedit v1 — vault layer: discovery, card->file lookup, sync state.
 
-The vault root is the nearest ancestor directory containing `.heptasync/`
+The vault root is the nearest ancestor directory containing `.hbedit/`
 (the same idea as git locating `.git/`). See DESIGN.md §8.2.
 """
 from __future__ import annotations
@@ -10,12 +10,12 @@ import os
 
 import frontmatter
 
-STATE_DIR = ".heptasync"
+STATE_DIR = ".hbedit"
 STATE_FILE = "state.json"
 
 
 def find_vault_root(start):
-    """Walk up from `start` (a file or dir) to the dir holding `.heptasync/`.
+    """Walk up from `start` (a file or dir) to the dir holding `.hbedit/`.
     Returns the vault root path, or None if no vault encloses `start`."""
     d = os.path.abspath(start)
     if os.path.isfile(d):
@@ -56,7 +56,7 @@ def find_file_by_card_id(vault, card_id):
     return None
 
 
-# -- sync state (.heptasync/state.json) -----------------------------------
+# -- sync state (.hbedit/state.json) --------------------------------------
 def _state_path(vault):
     return os.path.join(vault, STATE_DIR, STATE_FILE)
 
@@ -85,7 +85,7 @@ def get_tag_base(vault, card_id):
 
 def set_tag_base(vault, card_id, tags):
     # If state.json is corrupt, load_state returns a fresh skeleton, so this
-    # write drops other cards' bases. Acceptable: HeptaSync is a single-writer
+    # write drops other cards' bases. Acceptable: hbedit is a single-writer
     # CLI and a lost base only forces a 2-way tag fallback on the next push.
     state = load_state(vault)
     state.setdefault("cards", {}).setdefault(card_id, {})["tags"] = list(tags)

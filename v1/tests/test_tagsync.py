@@ -43,16 +43,16 @@ class TestMergeTags(unittest.TestCase):
 class TestFuzzy(unittest.TestCase):
     def test_typo_finds_similar(self):
         self.assertEqual(
-            tagsync.find_similar_tag("Heptasync", ["HeptaSync", "work"]),
-            "HeptaSync")
+            tagsync.find_similar_tag("Hbedit", ["hbedit", "work"]),
+            "hbedit")
 
     def test_exact_match_is_not_ambiguous(self):
         self.assertIsNone(
-            tagsync.find_similar_tag("HeptaSync", ["HeptaSync", "work"]))
+            tagsync.find_similar_tag("hbedit", ["hbedit", "work"]))
 
     def test_genuinely_new_tag_has_no_match(self):
         self.assertIsNone(
-            tagsync.find_similar_tag("quarterly", ["HeptaSync", "work"]))
+            tagsync.find_similar_tag("quarterly", ["hbedit", "work"]))
 
 
 if __name__ == "__main__":

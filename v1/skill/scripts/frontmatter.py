@@ -1,6 +1,6 @@
-"""HeptaSync v1 — frontmatter schema.
+"""hbedit v1 — frontmatter schema.
 
-A HeptaSync note file is plain Markdown with a YAML frontmatter block holding
+An hbedit note file is plain Markdown with a YAML frontmatter block holding
 the metadata that ties the file back to a Heptabase card. All managed keys live
 under a single `heptabase:` mapping so the block is unambiguous and easy to
 strip before pushing content to Heptabase.

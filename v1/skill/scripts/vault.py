@@ -54,3 +54,39 @@ def find_file_by_card_id(vault, card_id):
             if hb.get("cardId") == card_id:
                 return path
     return None
+
+
+# -- sync state (.heptasync/state.json) -----------------------------------
+def _state_path(vault):
+    return os.path.join(vault, STATE_DIR, STATE_FILE)
+
+
+def load_state(vault):
+    """Return the parsed state.json, or a fresh skeleton if absent/corrupt."""
+    try:
+        with open(_state_path(vault), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {"cards": {}}
+
+
+def save_state(vault, state):
+    path = _state_path(vault)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
+
+
+def get_tag_base(vault, card_id):
+    """The tag set recorded at the last sync — the base for 3-way tag merge."""
+    return list(load_state(vault).get("cards", {})
+                .get(card_id, {}).get("tags", []))
+
+
+def set_tag_base(vault, card_id, tags):
+    # If state.json is corrupt, load_state returns a fresh skeleton, so this
+    # write drops other cards' bases. Acceptable: HeptaSync is a single-writer
+    # CLI and a lost base only forces a 2-way tag fallback on the next push.
+    state = load_state(vault)
+    state.setdefault("cards", {}).setdefault(card_id, {})["tags"] = list(tags)
+    save_state(vault, state)

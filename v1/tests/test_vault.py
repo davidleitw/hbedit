@@ -37,5 +37,33 @@ class TestVaultDiscovery(unittest.TestCase):
             self.assertIsNone(vault.find_file_by_card_id(root, "CID-MISSING"))
 
 
+class TestVaultState(unittest.TestCase):
+    def test_tag_base_round_trips(self):
+        with tempfile.TemporaryDirectory() as root:
+            os.makedirs(os.path.join(root, ".heptasync"))
+            self.assertEqual(vault.get_tag_base(root, "CID-1"), [])
+            vault.set_tag_base(root, "CID-1", ["work", "urgent"])
+            self.assertEqual(
+                sorted(vault.get_tag_base(root, "CID-1")), ["urgent", "work"])
+            # a second card does not disturb the first
+            vault.set_tag_base(root, "CID-2", ["q2"])
+            self.assertEqual(
+                sorted(vault.get_tag_base(root, "CID-1")), ["urgent", "work"])
+
+    def test_set_tag_base_creates_state_dir_on_fresh_vault(self):
+        with tempfile.TemporaryDirectory() as root:
+            # no .heptasync/ pre-created — save_state must makedirs it
+            vault.set_tag_base(root, "CID-1", ["a"])
+            self.assertEqual(vault.get_tag_base(root, "CID-1"), ["a"])
+
+    def test_load_state_recovers_from_corrupt_file(self):
+        with tempfile.TemporaryDirectory() as root:
+            os.makedirs(os.path.join(root, ".heptasync"))
+            with open(os.path.join(root, ".heptasync", "state.json"),
+                      "w", encoding="utf-8") as f:
+                f.write("{not valid json")
+            self.assertEqual(vault.get_tag_base(root, "CID-1"), [])
+
+
 if __name__ == "__main__":
     unittest.main()

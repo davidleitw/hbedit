@@ -21,8 +21,7 @@ import re
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, _HERE)                                 # frontmatter.py
-sys.path.insert(0, os.path.join(_HERE, "..", "poc"))      # htb, pm2md, transplant
+sys.path.insert(0, _HERE)                                 # all modules co-located
 
 import frontmatter   # noqa: E402
 import htb           # noqa: E402

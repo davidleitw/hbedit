@@ -1,42 +1,76 @@
 # HeptaSync
 
-A local-markdown ⇄ Heptabase sync layer built **only** on the official
-`heptabase` CLI. Edit plain `.md` files locally; changes sync to Heptabase and
-back, so agents (and people) can work on a normal markdown tree.
+> **Unofficial.** Not made by or affiliated with Heptabase. Built entirely on
+> top of the official `heptabase` CLI — it never touches Heptabase's database
+> or internal files.
 
-## Status — POC complete, v1 designed
+📖 *[繁體中文 README →](./README.zh.md)*
 
-| Folder | Contents |
-|---|---|
-| `poc/` | 21 feasibility experiments + the reusable pieces they validated |
-| `v1/`  | The v1 design: folder layout, frontmatter schema, `DESIGN.md` |
+## What's this for?
 
-Run the experiments (Heptabase desktop app must be open):
+Here's the gap. The official `heptabase` CLI can **create** a card, and it can
+**tack stuff onto the end** of one — but it can't actually rewrite the
+**middle** of an existing card from plain text. So an AI agent can help you
+*add* to your notes, but not *clean them up*.
 
-```bash
-python3 poc/poc.py
+HeptaSync fixes that. It lets you (or an agent) treat a Heptabase card like an
+ordinary markdown file: pull it down, edit it however you like with normal
+text tools, push it back. Same card, same identity — just rewritten.
+
+So when you want to "tidy up that messy note", "reorder these sections", or
+"fix the formatting across all my LeetCode cards" — that's what HeptaSync is
+for. If you just want a brand-new card or to append a line, use the official
+CLI directly; it's simpler.
+
+## How do you use it?
+
+HeptaSync ships as an **Agent Skill** — it works inside Claude Code, Codex
+CLI, and opencode.
+
+Once it's installed (see **[`v1/INSTALL.md`](./v1/INSTALL.md)**), you don't
+run anything special. Just talk to your agent in plain language:
+
+> "Pull my 'Reading list' card and reorganize it by topic."
+
+The agent recognizes this as a HeptaSync job and takes over. Under the hood
+it runs three commands:
+
+```
+hs doctor                  # check the environment is OK
+hs pull <cardId> <vault>   # card  ->  a local .md file
+#   ... edit the .md ...
+hs push <file>             # .md   ->  back into the same card
 ```
 
-Results go to `poc/EXPERIMENTS.md` and to a single Heptabase card —
-**"HeptaSync POC — 實驗記錄"** — which also carries the full v1 design.
+You can also run those yourself in a terminal if you'd rather drive it by hand.
 
-## What the POC proved
+## How does it actually work?
 
-Both sync directions work through the official CLI alone:
+The tricky part is **push**. Heptabase stores cards in its own internal format
+(ProseMirror JSON), not markdown — so you can't just hand it your edited text.
 
-- **Pull** — ProseMirror JSON → Markdown, lossless across Heptabase's full
-  node vocabulary (`poc/pm2md.py`).
-- **Push** — edited Markdown → Heptabase via the **transplant strategy**:
-  Heptabase itself converts the markdown (a scratch card), then we transplant
-  the original card's block IDs onto the surviving blocks so unchanged content
-  keeps its identity (`poc/transplant.py`).
+HeptaSync's trick: it lets **Heptabase itself** do the conversion.
 
-21 experiments, 20 pass; the one warning (E03) is a real limitation — card-to-card
-references cannot be authored from markdown.
+1. **Pull** — read the card, convert its internal JSON into clean markdown,
+   and save it as a local `.md` file (with a tiny hidden header that remembers
+   which card it belongs to).
+2. **Push** — take your edited markdown and ask Heptabase to build a
+   *throwaway* card from it. Now Heptabase has done the markdown→internal
+   conversion for you. HeptaSync then "transplants" the original card's block
+   IDs onto the matching blocks, saves that into the real card, and deletes
+   the throwaway.
 
-See `v1/DESIGN.md` for the design and `poc/EXPERIMENTS.md` for full results.
+The upshot: HeptaSync never has to understand Heptabase's internal format
+itself. And because the block IDs are preserved, links and references that
+point into the card don't break.
 
-## Reusable pieces (validated in the POC)
+Two safety nets worth knowing: every push first checks whether the card
+changed underneath you — if it did, HeptaSync backs up your version to a
+`.conflict.md` file instead of clobbering it. And it talks **only** to the
+official `heptabase` CLI — never to Heptabase's database or files directly.
 
-`poc/htb.py` (CLI wrapper) · `poc/pm2md.py` (pull) · `poc/transplant.py` (push)
-· `v1/frontmatter.py` (frontmatter schema).
+## Status
+
+**v1** — pull / edit / push for note cards, with conflict detection and tag
+sync. Install steps: [`v1/INSTALL.md`](./v1/INSTALL.md). The full design
+write-up: [`v1/DESIGN.md`](./v1/DESIGN.md).

@@ -149,8 +149,10 @@ def tag_add(card_id, tag_name):
     return _run(["tag", "add", "--card-id", card_id, "--tag-name", tag_name])
 
 
-def tag_remove(card_id, tag_name):
-    return _run(["tag", "remove", "--card-id", card_id, "--tag-name", tag_name])
+def tag_remove(card_id, tag_id):
+    """Remove a tag from a card. `tag_id` is the tag's UUID (resolve a tag
+    name to its id via `tag_list` first)."""
+    return _run(["tag", "remove", "--card-id", card_id, "--tag-id", tag_id])
 
 
 # -- whiteboards -----------------------------------------------------------

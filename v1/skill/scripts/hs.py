@@ -27,6 +27,8 @@ import frontmatter   # noqa: E402
 import htb           # noqa: E402
 import pm2md         # noqa: E402
 import transplant    # noqa: E402
+import vault as vaultlib   # noqa: E402
+import tagsync             # noqa: E402
 
 
 def _now():
@@ -49,6 +51,22 @@ def _sidecar_path(vault, card_id):
 def _slug(title):
     s = re.sub(r"[^\w一-鿿 -]", "", title or "").strip().lower()
     return re.sub(r"\s+", "-", s) or "note"
+
+
+def _slug_path(notes_dir, title, card_id):
+    """First-pull file path for a card. On slug collision, disambiguate with
+    a short cardId prefix so two cards never claim one file. If even the
+    disambiguated path is taken, fail loudly rather than overwrite."""
+    slug = _slug(title)
+    path = os.path.join(notes_dir, slug + ".md")
+    if not os.path.exists(path):
+        return path
+    disambig = os.path.join(notes_dir, slug + "-" + card_id[:8] + ".md")
+    if os.path.exists(disambig):
+        raise FileExistsError(
+            "cannot place a first-pull file for card %s: both %s and %s "
+            "are already taken" % (card_id, path, disambig))
+    return disambig
 
 
 def _write(path, text):
@@ -93,15 +111,38 @@ def push(path):
 
 
 def pull(card_id, vault):
-    """Pull a Heptabase card down into <vault>/notes/ as a HeptaSync note."""
+    """Pull a Heptabase card into the vault as a HeptaSync note.
+
+    If a file for this cardId already exists, it is updated in place (the
+    filename never auto-changes — DESIGN.md §8.3). Otherwise a slug-named
+    file is created. Tags are synced down from the card.
+    """
     rec = htb.note_read(card_id)
     body, _ = pm2md.to_markdown(json.loads(rec["content"]))
-    notes = os.path.join(vault, "notes")
-    os.makedirs(notes, exist_ok=True)
-    path = os.path.join(notes, _slug(rec["title"]) + ".md")
-    meta = frontmatter.build_note_meta(rec, synced_at=_now())
+
+    # tags currently on the card
+    props = htb.card_properties(card_id)
+    tags = sorted({t["tagName"] for t in props.get("tags", [])})
+
+    # locate the existing file for this card, or pick a first-pull path
+    path = vaultlib.find_file_by_card_id(vault, card_id)
+    whiteboards = []
+    if path is None:
+        notes = os.path.join(vault, "notes")
+        os.makedirs(notes, exist_ok=True)
+        path = _slug_path(notes, rec["title"], card_id)
+    else:
+        # preserve the user-editable whiteboards field across a pull
+        with open(path, encoding="utf-8") as fh:
+            old_meta, _ = frontmatter.parse(fh.read())
+        whiteboards = old_meta.get(frontmatter.MANAGED_KEY, {}).get(
+            "whiteboards", [])
+
+    meta = frontmatter.build_note_meta(
+        rec, tags=tags, whiteboards=whiteboards, synced_at=_now())
     _write(path, frontmatter.serialize(meta, body))
     _write(_sidecar_path(vault, card_id), rec["content"])
+    vaultlib.set_tag_base(vault, card_id, tags)
     return path
 
 

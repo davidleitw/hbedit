@@ -7,9 +7,9 @@ strip before pushing content to Heptabase.
 
     ---
     heptabase:
+      schemaVersion: 1
       cardId: 7301c5b4-ee45-4b10-bb31-7cc50b92dc4f
       type: note
-      title: My note
       tags:
         - LeetCode
       whiteboards: []
@@ -31,10 +31,11 @@ experiment E19.
 from __future__ import annotations
 
 MANAGED_KEY = "heptabase"
+SCHEMA_VERSION = 1
 
 # The managed keys, in canonical emit order.
-SCHEMA_FIELDS = ["cardId", "type", "title", "tags", "whiteboards",
-                 "contentMd5", "createdTime", "lastEditedTime", "syncedAt"]
+SCHEMA_FIELDS = ["schemaVersion", "cardId", "type", "tags", "whiteboards",
+                 "contentMd5", "syncedAt"]
 
 
 # -- public API ------------------------------------------------------------
@@ -64,13 +65,15 @@ def serialize(meta, body):
 def build_note_meta(card_record, tags=None, whiteboards=None, synced_at=None):
     """Build the managed frontmatter dict for a note card.
 
-    card_record: a dict from `heptabase note read` / `card list` (id, title,
-    contentMd5, createdTime, lastEditedTime).
+    card_record: a dict from `heptabase note read` (id, contentMd5).
+    The card title is NOT stored — its source of truth is the body's first H1
+    (see DESIGN.md §8.3). The dict insertion order below IS the emit order and
+    must match SCHEMA_FIELDS.
     """
     hb = {
+        "schemaVersion": SCHEMA_VERSION,
         "cardId": card_record.get("id"),
         "type": "note",
-        "title": card_record.get("title", ""),
         "tags": list(tags or []),
         "whiteboards": list(whiteboards or []),
         "contentMd5": card_record.get("contentMd5"),

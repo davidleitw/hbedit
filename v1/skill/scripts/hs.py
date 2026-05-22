@@ -18,6 +18,7 @@ import datetime
 import json
 import os
 import re
+import shutil
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -236,7 +237,45 @@ def _sync_tags(vault, card_id, local_tags):
     return "tags +%d -%d" % (len(to_add), len(to_remove))
 
 
+SUPPORTED_RANGE = "0.3."          # accept 0.3.x
+
+
+def _version_supported(version):
+    """True if a `heptabase --version` string is within the supported range."""
+    return bool(version) and version.strip().startswith(SUPPORTED_RANGE)
+
+
+def doctor():
+    """Preflight: verify the Heptabase CLI is installed, compatible, and the
+    desktop app is running. Returns (status, detail). See DESIGN.md §9.4.
+
+    Always returns a structured status — never lets a subprocess/OS error
+    escape as a traceback, since `hs doctor` is consumed as machine output."""
+    if shutil.which("heptabase") is None:
+        return "cli-missing", "heptabase CLI not found on PATH"
+    try:
+        version = htb.version()
+    except OSError as exc:
+        return "cli-missing", "heptabase CLI could not be run: %s" % exc
+    if not _version_supported(version):
+        return ("cli-version-unsupported",
+                "heptabase %s is outside the supported %sx range"
+                % (version or "?", SUPPORTED_RANGE))
+    try:
+        htb.card_list(limit=1)
+    except htb.HtbError as exc:
+        return "app-not-running", htb.error_detail(exc)
+    except OSError as exc:
+        return "cli-missing", "heptabase CLI could not be run: %s" % exc
+    return "ok", "heptabase %s, desktop app reachable" % version
+
+
 def main(argv):
+    if len(argv) == 2 and argv[1] == "doctor":
+        status, detail = doctor()
+        print(json.dumps({"command": "doctor", "status": status,
+                          "detail": detail}, ensure_ascii=False))
+        return 0 if status == "ok" else 2
     if len(argv) == 3 and argv[1] == "push":
         card_id, action = push(argv[2])
         print("push: %s  ->  card %s" % (action, card_id))

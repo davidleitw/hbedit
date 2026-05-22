@@ -28,18 +28,12 @@ import htb           # noqa: E402
 import pm2md         # noqa: E402
 import transplant    # noqa: E402
 import vault as vaultlib   # noqa: E402
-import tagsync             # noqa: E402
+import tagsync             # noqa: E402,F401  # used by push in Task 10
 
 
 def _now():
     return datetime.datetime.now(datetime.timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ")
-
-
-def _vault_root(path):
-    """Vault root = the directory holding `notes/`; fall back to the file's dir."""
-    d = os.path.dirname(os.path.abspath(path))
-    return os.path.dirname(d) if os.path.basename(d) == "notes" else d
 
 
 def _sidecar_path(vault, card_id):
@@ -76,10 +70,13 @@ def _write(path, text):
 
 def push(path):
     """Sync a local HeptaSync note file up to Heptabase."""
-    meta, body = frontmatter.parse(open(path, encoding="utf-8").read())
+    with open(path, encoding="utf-8") as fh:
+        meta, body = frontmatter.parse(fh.read())
     hb = meta.get(frontmatter.MANAGED_KEY, {})
     card_id = hb.get("cardId")
-    vault = _vault_root(path)
+    vault = vaultlib.find_vault_root(path)
+    if vault is None:
+        raise SystemExit("push: %s is not inside a HeptaSync vault" % path)
 
     if not card_id:
         # --- new note: Heptabase converts the markdown for us ------------
@@ -87,13 +84,19 @@ def push(path):
         action = "created"
     else:
         # --- existing note: transplant block IDs, then save -------------
-        old_doc = json.load(open(_sidecar_path(vault, card_id), encoding="utf-8"))
-        before = htb.note_read(card_id)
-        scratch = htb.note_create(body)              # Heptabase does md -> JSON
+        with open(_sidecar_path(vault, card_id), encoding="utf-8") as fh:
+            old_doc = json.load(fh)
+        lock_md5 = hb.get("contentMd5")          # the last-pull md5 = the lock
+        if lock_md5 is None:
+            raise SystemExit(
+                "push: %s has no contentMd5 — re-pull the card before "
+                "pushing (without the lock a push could silently overwrite "
+                "remote changes)" % path)
+        scratch = htb.note_create(body)          # Heptabase does md -> JSON
         try:
             new_doc = json.loads(htb.note_read(scratch["id"])["content"])
             report = transplant.transplant_ids(old_doc, new_doc)
-            htb.note_save(card_id, json.dumps(new_doc), before["contentMd5"])
+            htb.note_save(card_id, json.dumps(new_doc), lock_md5)
         finally:
             htb.card_trash(scratch["id"])
         action = "updated [%s]" % " ".join(

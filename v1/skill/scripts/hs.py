@@ -28,7 +28,7 @@ import htb           # noqa: E402
 import pm2md         # noqa: E402
 import transplant    # noqa: E402
 import vault as vaultlib   # noqa: E402
-import tagsync             # noqa: E402,F401  # used by push in Task 10
+import tagsync             # noqa: E402
 
 
 def _now():
@@ -113,12 +113,25 @@ def push(path):
             "%s=%d" % (k, len(report[k]))
             for k in ("preserved", "edited", "reordered", "inserted", "deleted"))
 
-    # persist sync state: sidecar JSON + refreshed frontmatter
+    # Persist content-sync state FIRST — sidecar + frontmatter with a fresh
+    # contentMd5, using the user's frontmatter tags for now. Doing this before
+    # tag sync means an aborted tag sync (TagAmbiguityError) cannot leave a
+    # stale lock that would trigger a spurious conflict on the next push, and
+    # it leaves the user's tags: edit visible so they can fix the typo.
     rec = htb.note_read(card_id)
     _write(_sidecar_path(vault, card_id), rec["content"])
     new_meta = frontmatter.build_note_meta(
         rec, tags=hb.get("tags"), whiteboards=hb.get("whiteboards"),
         synced_at=_now())
+    _write(path, frontmatter.serialize(new_meta, body))
+
+    # sync tags (3-way); a typo aborts here, after content state is saved
+    tag_summary = _sync_tags(vault, card_id, hb.get("tags"))
+    action = action + "; " + tag_summary
+
+    # tag sync settled the real tag set — refresh the frontmatter tags
+    new_meta[frontmatter.MANAGED_KEY]["tags"] = vaultlib.get_tag_base(
+        vault, card_id)
     _write(path, frontmatter.serialize(new_meta, body))
     return card_id, action
 
@@ -183,6 +196,44 @@ def _handle_conflict(path, local_body, vault, card_id):
             "conflict backup saved to %s, but the re-pull failed: %s"
             % (backup, exc)) from exc
     return card_id, "conflict (local saved to %s)" % os.path.basename(backup)
+
+
+class TagAmbiguityError(SystemExit):
+    """A frontmatter tag is suspiciously close to an existing one — likely a
+    typo. Per DESIGN.md §8.5 we stop rather than silently create a new tag."""
+
+
+def _sync_tags(vault, card_id, local_tags):
+    """3-way sync the card's tags toward frontmatter `tags:`. Returns a short
+    summary string. Raises TagAmbiguityError on a suspected typo."""
+    base = vaultlib.get_tag_base(vault, card_id)
+    props = htb.card_properties(card_id)
+    remote = sorted({t["tagName"] for t in props.get("tags", [])})
+    to_add, to_remove, final = tagsync.merge_tags(base, local_tags or [], remote)
+
+    # one tag_list snapshot: to_remove tags already exist in it, and every
+    # new tag is validated against it before any mutation happens.
+    tag_index = htb.tag_list().get("tags") or []
+    all_names = [t["name"] for t in tag_index]
+    # validate EVERY new tag before touching Heptabase — a typo must abort
+    # before any partial tag_add leaves the recorded base stale.
+    for name in to_add:
+        similar = tagsync.find_similar_tag(name, all_names)
+        if similar:
+            raise TagAmbiguityError(
+                "tag '%s' is close to existing '%s' — fix the frontmatter "
+                "tags: and push again (or keep it if it is intentional)"
+                % (name, similar))
+    for name in to_add:
+        htb.tag_add(card_id, name)
+
+    id_by_name = {t["name"]: t["id"] for t in tag_index}
+    for name in to_remove:
+        if name in id_by_name:
+            htb.tag_remove(card_id, id_by_name[name])
+
+    vaultlib.set_tag_base(vault, card_id, final)
+    return "tags +%d -%d" % (len(to_add), len(to_remove))
 
 
 def main(argv):

@@ -15,6 +15,10 @@ _LIST_ITEM_TYPES = {
     "todo_list_item": "- [ ] ",
 }
 
+# Numbered-list node types — their marker is computed per run, not from the
+# table above (the "1. " entries are only used for membership checks).
+_NUMBERED_TYPES = {"numbered_list_item", "ordered_list_item"}
+
 
 class Converter:
     def __init__(self):
@@ -23,23 +27,31 @@ class Converter:
 
     def convert(self, doc):
         """doc: parsed {"type": "doc", "content": [...]}. Returns markdown."""
-        pieces = []  # (node_type, rendered_text)
+        pieces = []          # (node_type, rendered_text)
+        ordinal = 0          # running number for a numbered-list run
+        prev = None
         for node in doc.get("content", []):
-            rendered = self._block(node, depth=0)
+            ntype = node.get("type")
+            if ntype in _NUMBERED_TYPES:
+                ordinal = ordinal + 1 if prev == ntype else 1
+            else:
+                ordinal = 0
+            rendered = self._block(node, depth=0, ordinal=ordinal)
             if rendered is not None:
-                pieces.append((node.get("type"), rendered))
+                pieces.append((ntype, rendered))
+            prev = ntype
         out = []
         for i, (ntype, text) in enumerate(pieces):
             if i > 0:
-                prev = pieces[i - 1][0]
+                prevt = pieces[i - 1][0]
                 # Same-type adjacent list items form one tight list.
-                tight = (ntype in _LIST_ITEM_TYPES and ntype == prev)
+                tight = (ntype in _LIST_ITEM_TYPES and ntype == prevt)
                 out.append("\n" if tight else "\n\n")
             out.append(text)
         return "".join(out)
 
     # -- block-level -------------------------------------------------------
-    def _block(self, node, depth):
+    def _block(self, node, depth, ordinal=1):
         t = node.get("type")
         attrs = node.get("attrs", {})
         content = node.get("content", [])
@@ -50,7 +62,7 @@ class Converter:
         if t == "paragraph":
             return indent + self._inline(content)
         if t in _LIST_ITEM_TYPES:
-            return self._list_item(t, node, depth)
+            return self._list_item(t, node, depth, ordinal)
         if t == "code_block":
             lang = attrs.get("params") or attrs.get("language") or attrs.get("lang") or ""
             return "```" + lang + "\n" + self._plain(content) + "\n```"
@@ -71,23 +83,34 @@ class Converter:
         self.unknown_nodes.add(t)
         return indent + "<!-- UNCONVERTED " + str(t) + ": " + self._inline(content) + " -->"
 
-    def _list_item(self, t, node, depth):
+    def _list_item(self, t, node, depth, ordinal=1):
         indent = "  " * depth
         if t == "todo_list_item":
             marker = "- [x] " if node.get("attrs", {}).get("checked") else "- [ ] "
+        elif t in _NUMBERED_TYPES:
+            marker = "%d. " % ordinal
         else:
             marker = _LIST_ITEM_TYPES[t]
         # A Heptabase list item holds a paragraph plus any nested list items.
         own_text = ""
         nested = []
+        nested_ord = 0       # running number for a nested numbered run
+        prev_ct = None
         for child in node.get("content", []):
             ct = child.get("type")
             if ct == "paragraph" and not own_text:
                 own_text = self._inline(child.get("content", []))
-            elif ct in _LIST_ITEM_TYPES:
-                nested.append(self._list_item(ct, child, depth + 1))
+                prev_ct = ct
+                continue
+            if ct in _NUMBERED_TYPES:
+                nested_ord = nested_ord + 1 if prev_ct == ct else 1
+            else:
+                nested_ord = 0
+            if ct in _LIST_ITEM_TYPES:
+                nested.append(self._list_item(ct, child, depth + 1, nested_ord))
             else:
                 nested.append(self._block(child, depth + 1))
+            prev_ct = ct
         line = indent + marker + own_text
         return "\n".join([line] + nested) if nested else line
 

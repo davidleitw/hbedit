@@ -1,0 +1,17 @@
+{
+  "name": "hbedit",
+  "owner": {
+    "name": "davidleitw",
+    "url": "https://github.com/davidleitw"
+  },
+  "metadata": {
+    "description": "hbedit — local-markdown editing workflow for Heptabase cards (unofficial)"
+  },
+  "plugins": [
+    {
+      "name": "hbedit",
+      "source": "./",
+      "description": "Edit and reorganize existing Heptabase note cards via a local-markdown workflow. Unofficial."
+    }
+  ]
+}

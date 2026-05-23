@@ -3,8 +3,8 @@ import sys
 import tempfile
 import unittest
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(_ROOT, "v1", "skill", "scripts"))
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_ROOT, "skills", "hbedit", "scripts"))
 import vault
 
 

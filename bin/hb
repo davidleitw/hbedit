@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+import os, sys
+_here = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.join(_here, "..", "skills", "hbedit", "scripts"))
+import hbedit
+sys.exit(hbedit.main(sys.argv))

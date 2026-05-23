@@ -24,7 +24,7 @@ hbedit 補的就是這個洞。它讓你(或 AI agent)把一張 Heptabase 卡片
 hbedit 以 **Agent Skill** 的形式發佈 —— 在 Claude Code、Codex CLI、
 opencode 裡都能用。
 
-裝好之後(見 **[`v1/INSTALL.md`](./v1/INSTALL.md)**),你不用特別下什麼
+裝好之後(見 **[`INSTALL.md`](./INSTALL.md)**),你不用特別下什麼
 指令。直接用白話跟你的 agent 講就好:
 
 > 「把我的『讀書清單』卡片拉下來,照主題重新整理。」
@@ -66,4 +66,4 @@ block 編號有保留下來,指向這張卡的連結和引用都不會斷。
 ## 現況
 
 **v1** —— note 卡片的 pull / 編輯 / push,含衝突偵測與 tag 同步。
-安裝步驟:[`v1/INSTALL.md`](./v1/INSTALL.md)。
+安裝步驟:[`INSTALL.md`](./INSTALL.md)。

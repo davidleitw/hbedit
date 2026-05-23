@@ -1,0 +1,19 @@
+{
+  "name": "hbedit",
+  "description": "Edit and reorganize existing Heptabase note cards via a local-markdown workflow. Pull a card to a .md file, edit it as plain text, push it back. Unofficial.",
+  "version": "0.1.0",
+  "author": {
+    "name": "davidleitw",
+    "url": "https://github.com/davidleitw"
+  },
+  "homepage": "https://github.com/davidleitw/hbedit",
+  "repository": "https://github.com/davidleitw/hbedit",
+  "license": "MIT",
+  "keywords": [
+    "heptabase",
+    "pkm",
+    "note-taking",
+    "markdown",
+    "unofficial"
+  ]
+}

@@ -27,7 +27,7 @@ CLI directly; it's simpler.
 hbedit ships as an **Agent Skill** — it works inside Claude Code, Codex
 CLI, and opencode.
 
-Once it's installed (see **[`v1/INSTALL.md`](./v1/INSTALL.md)**), you don't
+Once it's installed (see **[`INSTALL.md`](./INSTALL.md)**), you don't
 run anything special. Just talk to your agent in plain language:
 
 > "Pull my 'Reading list' card and reorganize it by topic."
@@ -72,4 +72,4 @@ official `heptabase` CLI — never to Heptabase's database or files directly.
 ## Status
 
 **v1** — pull / edit / push for note cards, with conflict detection and tag
-sync. Install steps: [`v1/INSTALL.md`](./v1/INSTALL.md).
+sync. Install steps: [`INSTALL.md`](./INSTALL.md).

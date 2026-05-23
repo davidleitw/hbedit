@@ -1,59 +1,30 @@
+"""Tests for tagsync.py (v2: only find_similar_tag survives)."""
 import os
 import sys
-import unittest
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(_ROOT, "skills", "hbedit", "scripts"))
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(_HERE, "..", "skills", "hbedit", "scripts"))
+
 import tagsync
 
 
-class TestMergeTags(unittest.TestCase):
-    def test_design_example_keeps_remote_addition(self):
-        # base [work], local +urgent, remote +q2
-        to_add, to_remove, final = tagsync.merge_tags(
-            ["work"], ["work", "urgent"], ["work", "q2"])
-        self.assertEqual(to_add, ["urgent"])
-        self.assertEqual(to_remove, [])
-        self.assertEqual(final, ["q2", "urgent", "work"])
-
-    def test_local_removal_is_applied(self):
-        to_add, to_remove, final = tagsync.merge_tags(["a"], [], ["a"])
-        self.assertEqual(to_remove, ["a"])
-        self.assertEqual(final, [])
-
-    def test_local_add_to_untagged_card(self):
-        to_add, to_remove, final = tagsync.merge_tags([], ["x"], [])
-        self.assertEqual(to_add, ["x"])
-        self.assertEqual(final, ["x"])
-
-    def test_remote_only_removal_is_not_re_added(self):
-        # base=[a,b], local unchanged, remote dropped b -> b stays gone
-        to_add, to_remove, final = tagsync.merge_tags(
-            ["a", "b"], ["a", "b"], ["a"])
-        self.assertEqual(to_add, [])
-        self.assertEqual(final, ["a"])
-
-    def test_concurrent_local_and_remote_add(self):
-        # both sides added x -> no double-add
-        to_add, to_remove, final = tagsync.merge_tags([], ["x"], ["x"])
-        self.assertEqual(to_add, [])
-        self.assertEqual(final, ["x"])
+def test_exact_match_returns_none():
+    assert tagsync.find_similar_tag("foo", ["foo", "bar"]) is None
 
 
-class TestFuzzy(unittest.TestCase):
-    def test_typo_finds_similar(self):
-        self.assertEqual(
-            tagsync.find_similar_tag("Hbedit", ["hbedit", "work"]),
-            "hbedit")
-
-    def test_exact_match_is_not_ambiguous(self):
-        self.assertIsNone(
-            tagsync.find_similar_tag("hbedit", ["hbedit", "work"]))
-
-    def test_genuinely_new_tag_has_no_match(self):
-        self.assertIsNone(
-            tagsync.find_similar_tag("quarterly", ["hbedit", "work"]))
+def test_close_misspelling_returns_existing():
+    assert tagsync.find_similar_tag("leetcod", ["leetcode", "other"]) == "leetcode"
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_case_difference_is_caught():
+    # Heptabase tags are case-sensitive; "Hbedit" vs "hbedit" would create
+    # a near-duplicate, so we surface this.
+    assert tagsync.find_similar_tag("Hbedit", ["hbedit"]) == "hbedit"
+
+
+def test_far_returns_none():
+    assert tagsync.find_similar_tag("xyz", ["completely-different-name"]) is None
+
+
+def test_empty_existing():
+    assert tagsync.find_similar_tag("anything", []) is None

@@ -53,3 +53,19 @@ def test_load_local_state_tolerates_corrupt_json():
             f.write("{not json")
         assert local_state.load_local_state(root) == \
             {"schemaVersion": 1, "files": {}}
+
+
+def test_body_md5_deterministic():
+    text = "# Hello\n\nWorld\n"
+    a = local_state.body_md5(text)
+    b = local_state.body_md5(text)
+    assert a == b
+    assert isinstance(a, str)
+    assert len(a) == 32  # md5 hex
+
+
+def test_body_md5_normalizes_line_endings():
+    # Don't generate spurious diffs because of CRLF.
+    a = local_state.body_md5("a\r\nb\r\n")
+    b = local_state.body_md5("a\nb\n")
+    assert a == b

@@ -12,12 +12,24 @@ card, so we silently treat a corrupt file as empty.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
 
 LOCAL_STATE_FILE = "local-state.json"
 SCHEMA_VERSION = 1
+
+
+def body_md5(text):
+    """Stable md5 of a markdown body.
+
+    Line endings are normalized to LF before hashing — local files may
+    arrive via git with CRLF (Windows / autocrlf) but we want a single
+    canonical hash. UTF-8 encoding is forced.
+    """
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    return hashlib.md5(normalized.encode("utf-8")).hexdigest()
 
 
 def _path(vault):

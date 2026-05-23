@@ -287,6 +287,154 @@ def pull_first_time(card_id, path):
         detail={"tags": tags}), 0
 
 
+def pull_smart(path):
+    """Implement `hb pull <path>` — smart-compare pull of a tracked path."""
+    vault = vaultlib.find_vault_root(path) or vaultlib.find_vault_root(os.getcwd())
+    if vault is None:
+        return errors.emit_error(
+            "pull", errors.NOT_IN_VAULT, path=path,
+            detail="no .hbedit/ found at or above %s" % path), 2
+    rel = _resolve_vault_relative(vault, path)
+
+    try:
+        state = vaultlib.load_state(vault)
+    except vaultlib.StateSchemaError as exc:
+        return errors.emit_error("pull", errors.STATE_SCHEMA_UNSUPPORTED,
+                                 detail=str(exc)), 2
+    except vaultlib.StateCorruptError as exc:
+        return errors.emit_error("pull", errors.STATE_CORRUPT,
+                                 detail=str(exc)), 2
+
+    entry = state["files"].get(rel)
+    if entry is None:
+        return errors.emit_error(
+            "pull", errors.PATH_NOT_TRACKED, path=rel,
+            detail="%s is not registered in state.json. To start tracking "
+                   "an existing card, use `hb pull <cardId> %s`. To push a "
+                   "new card from this file, use `hb push %s`."
+                   % (rel, rel, rel)), 2
+    card_id = entry["cardId"]
+    abs_path = os.path.abspath(path)
+
+    # Fetch remote.
+    try:
+        rec = htb.note_read(card_id)
+    except htb.HtbError as exc:
+        if "not found" in htb.error_detail(exc).lower():
+            return errors.emit_error(
+                "pull", errors.CARD_NOT_FOUND, path=rel,
+                detail="card %s is gone from Heptabase (trashed?)"
+                       % card_id), 2
+        raise
+    remote_md, _ = pm2md.to_markdown(json.loads(rec["content"]))
+    rr = local_state.body_md5(remote_md)
+
+    # Compute local md5 (file may not exist if user deleted it).
+    if os.path.exists(abs_path):
+        with open(abs_path, "r", encoding="utf-8") as f:
+            local_md = f.read()
+        ll = local_state.body_md5(local_md)
+    else:
+        local_md = None
+        ll = None
+
+    local_entry = local_state.get_local_entry(vault, rel)
+    ls = local_entry["localMd5"] if local_entry else None
+
+    # Refresh remote tags into state.json
+    props = htb.card_properties(card_id)
+    tags = sorted({t["tagName"] for t in props.get("tags", [])})
+    vaultlib.set_file_entry(vault, rel, card_id, tags)
+
+    # Smart-compare matrix:
+    if ls is None:
+        # Fresh-clone case (or first pull-by-path after a state.json edit).
+        if ll == rr:
+            return _baseline_established(vault, rel, card_id, rec, remote_md, tags)
+        # Differ or local missing.
+        if ll is not None:
+            _backup_local(abs_path, local_md)
+        return _write_remote_and_baseline(
+            vault, rel, abs_path, card_id, rec, remote_md, tags,
+            action="conflict" if ll is not None else "created")
+    # Has baseline:
+    if ll == ls:
+        # Local clean.
+        if rr == ls:
+            return _refresh_synced_at(vault, rel, card_id, rec, tags,
+                                      action="noop")
+        return _write_remote_and_baseline(
+            vault, rel, abs_path, card_id, rec, remote_md, tags,
+            action="updated")
+    # Local diverged from baseline.
+    if rr == ls:
+        return errors.emit_error(
+            "pull", errors.LOCAL_HAS_CHANGES, path=rel,
+            detail="%s has local edits not in last sync. Push these "
+                   "first (or revert manually) before pulling." % rel), 2
+    # Both diverged.
+    _backup_local(abs_path, local_md)
+    return _write_remote_and_baseline(
+        vault, rel, abs_path, card_id, rec, remote_md, tags,
+        action="conflict")
+
+
+def _baseline_established(vault, rel, card_id, rec, remote_md, tags):
+    """Write local-state + sidecar without touching the working file."""
+    with open(_sidecar_path(vault, card_id), "w", encoding="utf-8") as f:
+        f.write(rec["content"])
+    local_state.set_local_entry(
+        vault, rel,
+        content_md5=rec["contentMd5"],
+        local_md5=local_state.body_md5(remote_md),
+        synced_at=_now_iso())
+    return errors.emit_ok("pull", action="baseline-established",
+                          cardId=card_id, path=rel,
+                          detail={"tags": tags}), 0
+
+
+def _refresh_synced_at(vault, rel, card_id, rec, tags, action):
+    entry = local_state.get_local_entry(vault, rel)
+    local_state.set_local_entry(
+        vault, rel,
+        content_md5=entry["contentMd5"],
+        local_md5=entry["localMd5"],
+        synced_at=_now_iso())
+    return errors.emit_ok("pull", action=action,
+                          cardId=card_id, path=rel,
+                          detail={"tags": tags}), 0
+
+
+def _write_remote_and_baseline(vault, rel, abs_path, card_id, rec,
+                               remote_md, tags, action):
+    os.makedirs(os.path.dirname(abs_path) or ".", exist_ok=True)
+    with open(abs_path, "w", encoding="utf-8") as f:
+        f.write(remote_md)
+    with open(_sidecar_path(vault, card_id), "w", encoding="utf-8") as f:
+        f.write(rec["content"])
+    local_state.set_local_entry(
+        vault, rel,
+        content_md5=rec["contentMd5"],
+        local_md5=local_state.body_md5(remote_md),
+        synced_at=_now_iso())
+    return errors.emit_ok("pull", action=action,
+                          cardId=card_id, path=rel,
+                          detail={"tags": tags}), 0
+
+
+def _backup_local(abs_path, body):
+    """Write `body` to <abs_path>.conflict.md, disambiguating with a
+    numeric suffix if a backup already exists."""
+    backup = _conflict_path(abs_path)
+    stem, ext = os.path.splitext(backup)
+    n = 2
+    while os.path.exists(backup):
+        backup = "%s.%d%s" % (stem, n, ext)
+        n += 1
+    with open(backup, "w", encoding="utf-8") as f:
+        f.write(body)
+
+
 def _handle_conflict(vault, rel_path, local_body, card_id):
     """Remote changed since last pull: back up local body, re-pull remote
     over the working file, return a content-conflict response."""
@@ -331,6 +479,11 @@ def main(argv):
         return rc
     if len(argv) == 3 and argv[1] == "push":
         out, rc = push(argv[2])
+        print(out)
+        return rc
+    if len(argv) == 3 and argv[1] == "pull":
+        # 3 args = hb pull <path>
+        out, rc = pull_smart(argv[2])
         print(out)
         return rc
     if len(argv) == 4 and argv[1] == "pull":

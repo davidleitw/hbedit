@@ -223,6 +223,70 @@ def _push_update(vault, rel_path, body, card_id):
         detail=detail), 0
 
 
+def pull_first_time(card_id, path):
+    """Implement `hb pull <cardId> <path>` — first-time pull to a new path."""
+    vault = vaultlib.find_vault_root(path) or vaultlib.find_vault_root(os.getcwd())
+    if vault is None:
+        return errors.emit_error(
+            "pull", errors.NOT_IN_VAULT, path=path,
+            detail="no .hbedit/ found at or above %s" % path), 2
+    rel = _resolve_vault_relative(vault, path)
+
+    # Load state.json (validates schema + invariants).
+    try:
+        state = vaultlib.load_state(vault)
+    except vaultlib.StateSchemaError as exc:
+        return errors.emit_error("pull", errors.STATE_SCHEMA_UNSUPPORTED,
+                                 detail=str(exc)), 2
+    except vaultlib.StateCorruptError as exc:
+        return errors.emit_error("pull", errors.STATE_CORRUPT,
+                                 detail=str(exc)), 2
+
+    # Refuse if cardId is already mapped elsewhere.
+    existing = vaultlib.find_path_by_card_id(vault, card_id)
+    if existing and existing != rel:
+        return errors.emit_error(
+            "pull", errors.CARD_ID_ALREADY_TRACKED, path=rel,
+            detail="card %s is already linked to %s. Use `hb pull %s` to "
+                   "refresh that one, or remove its state.json entry first."
+                   % (card_id, existing, existing)), 2
+
+    # Refuse if path exists and is not the same already-tracked entry.
+    abs_path = os.path.abspath(path)
+    if os.path.exists(abs_path) and state["files"].get(rel, {}).get("cardId") != card_id:
+        return errors.emit_error(
+            "pull", errors.PATH_EXISTS_UNTRACKED, path=rel,
+            detail="%s already exists and is not tracked by this card. "
+                   "Pick a different path or remove the file first." % rel), 2
+
+    # Fetch + write.
+    try:
+        rec = htb.note_read(card_id)
+    except htb.HtbError as exc:
+        if "not found" in htb.error_detail(exc).lower():
+            return errors.emit_error(
+                "pull", errors.CARD_NOT_FOUND, path=rel,
+                detail="card %s not found on Heptabase" % card_id), 2
+        raise
+    remote_md, _ = pm2md.to_markdown(json.loads(rec["content"]))
+    os.makedirs(os.path.dirname(abs_path) or ".", exist_ok=True)
+    with open(abs_path, "w", encoding="utf-8") as f:
+        f.write(remote_md)
+    with open(_sidecar_path(vault, card_id), "w", encoding="utf-8") as f:
+        f.write(rec["content"])
+    props = htb.card_properties(card_id)
+    tags = sorted({t["tagName"] for t in props.get("tags", [])})
+    vaultlib.set_file_entry(vault, rel, card_id, tags)
+    local_state.set_local_entry(
+        vault, rel,
+        content_md5=rec["contentMd5"],
+        local_md5=local_state.body_md5(remote_md),
+        synced_at=_now_iso())
+    return errors.emit_ok(
+        "pull", action="created", cardId=card_id, path=rel,
+        detail={"tags": tags}), 0
+
+
 def _handle_conflict(vault, rel_path, local_body, card_id):
     """Remote changed since last pull: back up local body, re-pull remote
     over the working file, return a content-conflict response."""
@@ -267,6 +331,11 @@ def main(argv):
         return rc
     if len(argv) == 3 and argv[1] == "push":
         out, rc = push(argv[2])
+        print(out)
+        return rc
+    if len(argv) == 4 and argv[1] == "pull":
+        # 4 args = hb pull <cardId> <path>
+        out, rc = pull_first_time(argv[2], argv[3])
         print(out)
         return rc
     # Other commands land in subsequent tasks.

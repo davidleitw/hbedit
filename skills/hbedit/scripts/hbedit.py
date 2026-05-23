@@ -422,6 +422,98 @@ def _write_remote_and_baseline(vault, rel, abs_path, card_id, rec,
                           detail={"tags": tags}), 0
 
 
+def tag_add(path, name):
+    """Implement `hb tag add <path> <name>`."""
+    return _tag_op(path, name, action="add")
+
+
+def tag_remove(path, name):
+    """Implement `hb tag remove <path> <name>`."""
+    return _tag_op(path, name, action="remove")
+
+
+def _tag_op(path, name, action):
+    vault = vaultlib.find_vault_root(path) or vaultlib.find_vault_root(os.getcwd())
+    if vault is None:
+        return errors.emit_error(
+            "tag", errors.NOT_IN_VAULT, path=path,
+            detail="no .hbedit/ found at or above %s" % path), 2
+    rel = _resolve_vault_relative(vault, path)
+
+    try:
+        state = vaultlib.load_state(vault)
+    except vaultlib.StateSchemaError as exc:
+        return errors.emit_error("tag", errors.STATE_SCHEMA_UNSUPPORTED,
+                                 detail=str(exc)), 2
+    except vaultlib.StateCorruptError as exc:
+        return errors.emit_error("tag", errors.STATE_CORRUPT,
+                                 detail=str(exc)), 2
+
+    entry = state["files"].get(rel)
+    if entry is None:
+        return errors.emit_error(
+            "tag", errors.PATH_NOT_TRACKED, path=rel,
+            detail="%s is not tracked. Push or pull it first." % rel), 2
+    card_id = entry["cardId"]
+
+    # Read current remote tags.
+    try:
+        props = htb.card_properties(card_id)
+    except htb.HtbError as exc:
+        if "not found" in htb.error_detail(exc).lower():
+            return errors.emit_error(
+                "tag", errors.CARD_NOT_FOUND, path=rel,
+                detail="card %s is gone from Heptabase" % card_id), 2
+        raise
+    remote_tags = sorted({t["tagName"] for t in props.get("tags", [])})
+
+    if action == "add":
+        if name in remote_tags:
+            # Idempotent: already on the card. Refresh state, return ok.
+            vaultlib.set_file_entry(vault, rel, card_id, remote_tags)
+            return errors.emit_ok("tag", action="noop", cardId=card_id,
+                                  path=rel,
+                                  detail={"tags": remote_tags}), 0
+        # Typo guard against the whole tag library.
+        tag_index = htb.tag_list().get("tags") or []
+        all_names = [t["name"] for t in tag_index]
+        similar = tagsync.find_similar_tag(name, all_names)
+        if similar:
+            return errors.emit_error(
+                "tag", errors.TAG_AMBIGUITY, path=rel,
+                detail="tag %r is close to existing %r — fix or confirm "
+                       "by retrying with the exact desired name."
+                       % (name, similar)), 2
+        htb.tag_add(card_id, name)
+        new_tags = sorted(remote_tags + [name])
+        vaultlib.set_file_entry(vault, rel, card_id, new_tags)
+        return errors.emit_ok("tag", action="added", cardId=card_id,
+                              path=rel,
+                              detail={"tags": new_tags}), 0
+
+    # action == "remove"
+    if name not in remote_tags:
+        return errors.emit_error(
+            "tag", errors.TAG_NOT_ON_CARD, path=rel,
+            detail="card has no tag %r (tags: %s)"
+                   % (name, remote_tags)), 2
+    tag_index = htb.tag_list().get("tags") or []
+    by_name = {t["name"]: t["id"] for t in tag_index}
+    tag_id = by_name.get(name)
+    if tag_id is None:
+        # Shouldn't happen if remote claims it's there — defensive.
+        return errors.emit_error(
+            "tag", "tag-id-not-found", path=rel,
+            detail="tag %r reported on card but not found in tag library"
+                   % name), 2
+    htb.tag_remove(card_id, tag_id)
+    new_tags = [t for t in remote_tags if t != name]
+    vaultlib.set_file_entry(vault, rel, card_id, new_tags)
+    return errors.emit_ok("tag", action="removed", cardId=card_id,
+                          path=rel,
+                          detail={"tags": new_tags}), 0
+
+
 def _backup_local(abs_path, body):
     """Write `body` to <abs_path>.conflict.md, disambiguating with a
     numeric suffix if a backup already exists."""
@@ -489,6 +581,14 @@ def main(argv):
     if len(argv) == 4 and argv[1] == "pull":
         # 4 args = hb pull <cardId> <path>
         out, rc = pull_first_time(argv[2], argv[3])
+        print(out)
+        return rc
+    if len(argv) == 5 and argv[1] == "tag" and argv[2] == "add":
+        out, rc = tag_add(argv[3], argv[4])
+        print(out)
+        return rc
+    if len(argv) == 5 and argv[1] == "tag" and argv[2] == "remove":
+        out, rc = tag_remove(argv[3], argv[4])
         print(out)
         return rc
     # Other commands land in subsequent tasks.

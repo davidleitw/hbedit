@@ -1,7 +1,7 @@
 """hbedit v1 — vault layer: discovery, card->file lookup, sync state.
 
 The vault root is the nearest ancestor directory containing `.hbedit/`
-(the same idea as git locating `.git/`). See DESIGN.md §8.2.
+(the same idea as git locating `.git/`).
 """
 from __future__ import annotations
 

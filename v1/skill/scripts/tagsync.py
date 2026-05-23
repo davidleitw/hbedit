@@ -1,4 +1,4 @@
-"""hbedit v1 — tag 3-way merge and fuzzy-match guard. See DESIGN.md §8.5."""
+"""hbedit v1 — tag 3-way merge and fuzzy-match guard."""
 from __future__ import annotations
 
 import difflib

@@ -72,5 +72,4 @@ official `heptabase` CLI — never to Heptabase's database or files directly.
 ## Status
 
 **v1** — pull / edit / push for note cards, with conflict detection and tag
-sync. Install steps: [`v1/INSTALL.md`](./v1/INSTALL.md). The full design
-write-up: [`v1/DESIGN.md`](./v1/DESIGN.md).
+sync. Install steps: [`v1/INSTALL.md`](./v1/INSTALL.md).

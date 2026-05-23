@@ -9,7 +9,7 @@ import tagsync
 
 class TestMergeTags(unittest.TestCase):
     def test_design_example_keeps_remote_addition(self):
-        # DESIGN.md §8.5: base [work], local +urgent, remote +q2
+        # base [work], local +urgent, remote +q2
         to_add, to_remove, final = tagsync.merge_tags(
             ["work"], ["work", "urgent"], ["work", "q2"])
         self.assertEqual(to_add, ["urgent"])

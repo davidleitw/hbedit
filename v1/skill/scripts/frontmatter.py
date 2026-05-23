@@ -65,9 +65,9 @@ def build_note_meta(card_record, tags=None, synced_at=None):
     """Build the managed frontmatter dict for a note card.
 
     card_record: a dict from `heptabase note read` (id, contentMd5).
-    The card title is NOT stored — its source of truth is the body's first H1
-    (see DESIGN.md §8.3). The dict insertion order below IS the emit order and
-    must match SCHEMA_FIELDS.
+    The card title is NOT stored — its source of truth is the body's first H1.
+    The dict insertion order below IS the emit order and must match
+    SCHEMA_FIELDS.
     """
     hb = {
         "schemaVersion": SCHEMA_VERSION,

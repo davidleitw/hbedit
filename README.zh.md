@@ -66,5 +66,4 @@ block 編號有保留下來,指向這張卡的連結和引用都不會斷。
 ## 現況
 
 **v1** —— note 卡片的 pull / 編輯 / push,含衝突偵測與 tag 同步。
-安裝步驟:[`v1/INSTALL.md`](./v1/INSTALL.md)。完整設計文件:
-[`v1/DESIGN.md`](./v1/DESIGN.md)。
+安裝步驟:[`v1/INSTALL.md`](./v1/INSTALL.md)。

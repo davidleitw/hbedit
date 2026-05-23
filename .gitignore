@@ -1,0 +1,11 @@
+# local hbedit vaults are user data, never tracked
+vault/
+*.vault/
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS
+.DS_Store

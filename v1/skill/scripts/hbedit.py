@@ -140,8 +140,8 @@ def pull(card_id, vault):
     """Pull a Heptabase card into the vault as an hbedit note.
 
     If a file for this cardId already exists, it is updated in place (the
-    filename never auto-changes — DESIGN.md §8.3). Otherwise a slug-named
-    file is created. Tags are synced down from the card.
+    filename never auto-changes). Otherwise a slug-named file is created.
+    Tags are synced down from the card.
     """
     rec = htb.note_read(card_id)
     body, _ = pm2md.to_markdown(json.loads(rec["content"]))
@@ -192,7 +192,7 @@ def _handle_conflict(path, local_body, vault, card_id):
 
 class TagAmbiguityError(SystemExit):
     """A frontmatter tag is suspiciously close to an existing one — likely a
-    typo. Per DESIGN.md §8.5 we stop rather than silently create a new tag."""
+    typo. We stop rather than silently create a new tag."""
 
 
 def _sync_tags(vault, card_id, local_tags):
@@ -238,7 +238,7 @@ def _version_supported(version):
 
 def doctor():
     """Preflight: verify the Heptabase CLI is installed, compatible, and the
-    desktop app is running. Returns (status, detail). See DESIGN.md §9.4.
+    desktop app is running. Returns (status, detail).
 
     Always returns a structured status — never lets a subprocess/OS error
     escape as a traceback, since `hb doctor` is consumed as machine output."""

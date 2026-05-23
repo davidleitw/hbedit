@@ -80,15 +80,6 @@ def note_save(card_id, content_json_str, content_md5=None):
         return _run(args + ["-f", path])
 
 
-def note_append(card_id, markdown, content_md5=None):
-    """Append markdown to a note."""
-    args = ["note", "append", card_id]
-    if content_md5:
-        args += ["--content-md5", content_md5]
-    with _tmp(markdown) as path:
-        return _run(args + ["-f", path])
-
-
 # -- cards -----------------------------------------------------------------
 def card_list(query=None, card_types=None, sort="lastUpdatedTime",
               direction="descending", limit=20, offset=0):
@@ -105,43 +96,15 @@ def card_trash(card_id):
     return _run(["card", "trash", card_id])
 
 
-def card_restore(card_id):
-    return _run(["card", "restore", card_id])
-
-
 def card_properties(card_id):
     return _run(["card", "properties", card_id])
 
 
-def card_set_property(card_id, property_id, value=None, json_value=None):
-    args = ["card", "set-property", card_id, "--property-id", property_id]
-    if json_value is not None:
-        args += ["--json-value", json_value]
-    else:
-        args += ["--value", value]
-    return _run(args)
-
-
 # -- tags ------------------------------------------------------------------
-def tag_create(name):
-    return _run(["tag", "create", "--name", name])
-
-
 def tag_list(name_filter=None):
     args = ["tag", "list"]
     if name_filter:
         args += ["--name-filter", name_filter]
-    return _run(args)
-
-
-def tag_properties(tag_id):
-    return _run(["tag", "properties", tag_id])
-
-
-def tag_cards(tag_id, include_properties=False):
-    args = ["tag", "cards", tag_id]
-    if include_properties:
-        args += ["--include-properties"]
     return _run(args)
 
 
@@ -153,27 +116,3 @@ def tag_remove(card_id, tag_id):
     """Remove a tag from a card. `tag_id` is the tag's UUID (resolve a tag
     name to its id via `tag_list` first)."""
     return _run(["tag", "remove", "--card-id", card_id, "--tag-id", tag_id])
-
-
-# -- whiteboards -----------------------------------------------------------
-def whiteboard_list(limit=20):
-    return _run(["whiteboard", "list", "--limit", str(limit)])
-
-
-def whiteboard_cards(whiteboard_id):
-    return _run(["whiteboard", "cards", whiteboard_id])
-
-
-def whiteboard_add_card(whiteboard_id, card_id):
-    return _run(["whiteboard", "add-card",
-                 "--whiteboard-id", whiteboard_id, "--card-id", card_id])
-
-
-def whiteboard_remove_card(whiteboard_id, card_id):
-    return _run(["whiteboard", "remove-card",
-                 "--whiteboard-id", whiteboard_id, "--card-id", card_id])
-
-
-# -- journals (read-only here, to avoid touching real journals) ------------
-def journal_read(date):
-    return _run(["journal", "read", date])

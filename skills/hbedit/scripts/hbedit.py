@@ -22,6 +22,7 @@ sys.path.insert(0, _HERE)
 
 import errors                 # noqa: E402
 import htb                    # noqa: E402
+import vault as vaultlib      # noqa: E402
 
 
 SUPPORTED_RANGE = "0.3."
@@ -60,9 +61,23 @@ def doctor():
                                  % version), 0
 
 
+def init(cwd):
+    """Initialize a vault in `cwd`. Returns (json_output, exit_code)."""
+    try:
+        result = vaultlib.init_vault(cwd)
+    except vaultlib.NestedVaultError as exc:
+        return errors.emit_error("init", errors.VAULT_NESTED,
+                                 detail=str(exc)), 2
+    return errors.emit_ok("init", action=result), 0
+
+
 def main(argv):
     if len(argv) == 2 and argv[1] == "doctor":
         out, rc = doctor()
+        print(out)
+        return rc
+    if len(argv) == 2 and argv[1] == "init":
+        out, rc = init(os.getcwd())
         print(out)
         return rc
     # Other commands land in subsequent tasks.

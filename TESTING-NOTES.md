@@ -330,3 +330,59 @@ P3 / P4 跑完,結合 P1 / P2,會累積到以下要動 SKILL.md 的清單:
 寫於 2026-05-23,P1 + P2 測完、P3 + P4 還沒跑的時間點。
 
 P3 / P4 跑完後,把結果直接 append 到這份文件下面,不要另開新檔。
+
+---
+
+## v2 redesign — manual test pass (2026-05-24)
+
+22 pass / 2 skipped (environment-dependent) / 1 bug found and fixed during testing
+
+Bug fix commit: `8337367` — `fix: normalize local file after push to prevent false conflict on fresh clone`
+
+| TC | Result | Notes |
+| --- | --- | --- |
+| TC1 | ✅ pass | `hb init` creates `.hbedit/state.json` with `schemaVersion:2`, `.gitignore` with both gitignored paths. Action `"created"`. |
+| TC1b | ✅ pass | `hb init` again → `action:"already-initialized"`, no file changes. Idempotent. |
+| TC1c | ✅ pass | `hb init` in subdir of existing vault → error `vault-nested` with ancestor path in detail. |
+| TC2 | ✅ pass | `hb push docs/foo.md` (untracked) → `action:"created"`, cardId in JSON, no frontmatter written to `.md`, `state.json` entry created, `local-state.json` entry written, sidecar written. |
+| TC3 | ✅ pass | `hb pull <cardId> docs/bar.md` → file written with card content, `state.json` + `local-state.json` + sidecar all populated. Tags reflected in state.json. |
+| TC3b | ✅ pass | `hb pull <same-cardId> docs/baz.md` → error `cardId-already-tracked` pointing to `docs/bar.md`. |
+| TC4 | ✅ pass | Edit `docs/foo.md`, `hb push` → `action:"updated"` with `inserted:2` counters for new H2 + paragraph. `local-state.json` `contentMd5` and `localMd5` refreshed. |
+| TC5 | ✅ pass | `hb push` with no edits → `action:"updated"`, all counters 0, only `preserved>0`. Full round-trip, not a noop. |
+| TC6 | ✅ pass | Simulated remote edit via direct `htb.note_save` API call (changing `contentMd5`). `hb pull docs/foo.md` → `action:"updated"`, local file overwritten with remote content, `local-state.json` refreshed. |
+| TC6b | ✅ pass | `hb pull` with both sides in sync → `action:"noop"`, file untouched. |
+| TC6c | ✅ pass | Local edit without push, then `hb pull` → error `local-has-changes`. Refused to overwrite local. |
+| TC7 | ✅ pass | `hb pull <cardId> docs/existing-untracked.md` → error `path-exists-untracked`. |
+| TC8 | ✅ pass | Deleted `local-state.json` + `sidecar/`. Local file matches remote. `hb pull` → `action:"baseline-established"`, working file untouched, `local-state.json` written. |
+| TC8b | ✅ pass | Deleted `local-state.json` + `sidecar/`. Edited local file before pull. `hb pull` → `action:"conflict"`, `.conflict.md` created with local content, working file overwritten with remote. |
+| TC8c | ✅ pass | Deleted `local-state.json` + `sidecar/`. `hb push` → error `no-baseline`. |
+| TC9 | ✅ pass | Local edit + simultaneous remote edit via `htb.note_save`. `hb push` → error `content-conflict`. `foo.conflict.2.md` backup created with local content; working file overwritten with remote latest. |
+| TC10 | ✅ pass | `hb tag add docs/foo.md LeetCode` → `action:"added"`, `state.json` tags updated. Then `hb tag add docs/foo.md Leetcod` → error `tag-ambiguity` (no remote mutation). |
+| TC10b | ✅ pass | `hb tag remove docs/foo.md LeetCode` → `action:"removed"`, `state.json` and remote both lose tag. Then `hb tag remove docs/foo.md nonexistent` → error `tag-not-on-card`. |
+| TC11 | ✅ pass (ok path only) | `hb doctor` with running desktop → `"heptabase 0.3.0, desktop app reachable"`. `cli-missing` and `app-not-running` paths: logic verified in code review; require PATH manipulation / killing the desktop app which isn't feasible in this environment. |
+| TC12 | ✅ pass (after bug fix) | Machine A push, simulate clone (delete `local-state.json` + `sidecar/`), `hb pull docs/foo.md` → `action:"baseline-established"`. Then Machine B edit + `hb push` succeeds. **Bug found**: before fix, `push` stored `localMd5` from raw file body instead of round-tripped content, causing stale md5 → false `conflict` on Machine B's first pull. Fixed in commit `8337367`. |
+| TC13 | ✅ pass | Corrupted `state.json` with invalid JSON. `hb push` → error `state-corrupt` with JSON parse error detail. No recovery attempted. |
+| TC14 | ✅ pass | `hb push /tmp/hbedit-integ/docs/foo.md` from `/tmp/hbedit-integ/deep/sub/dir` → success. Vault discovered by walking up from file path. |
+| TC15 | ✅ pass | `hb push /tmp/outside_vault_test.md` from `/tmp` (no `.hbedit/` ancestor) → error `not-in-vault`. |
+| TC16 | ✅ pass | Edited `state.json` `schemaVersion` to `1`. `hb push` → error `state-schema-unsupported`. |
+
+### Bugs found and fixed during integration testing
+
+**Bug: `hb push` stored stale `localMd5` — mis-triggered `conflict` on fresh-clone smart pull**
+
+- **Root cause:** `_push_update` (and `_push_create`) stored `localMd5 = body_md5(body)` where `body` is the raw local file contents. Heptabase normalizes content during the md→ProseMirror→md round-trip (e.g. strips trailing newlines). So after a push, the local file could have `"...sentence.\n"` while Heptabase stored `"...sentence."`. On Machine B's fresh-clone pull, `LL = md5("...sentence.\n")` but `RR = md5("...sentence.")` → `LL != RR` → `action:"conflict"` instead of `action:"baseline-established"`.
+- **Fix:** After push, rewrite the local `.md` file with the round-tripped content fetched back from Heptabase, and store `localMd5 = body_md5(round_trip_md)`. This keeps the local file and Heptabase byte-for-byte in sync after every push.
+- **Affected functions:** `_push_create`, `_push_update` in `skills/hbedit/scripts/hbedit.py`
+- **Fix commit:** `8337367`
+
+### Skipped / deferred
+
+- **TC11 `cli-missing`**: Requires PATH manipulation to hide `heptabase` binary. Logic covered in `doctor()` function via `shutil.which("heptabase") is None` check — verified in code review.
+- **TC11 `app-not-running`**: Requires killing the Heptabase desktop app. Logic covered by `htb.card_list(limit=1)` error-path in `doctor()` — verified in code review.
+- **TC9 GUI path**: Spec mentions triggering remote edit via Heptabase desktop UI. Simulated instead via `htb.note_save` direct API call with a valid `contentMd5` lock. Behavior is equivalent.
+
+### Test infrastructure notes
+
+- All TCs run against a real Heptabase desktop (v0.3.0) with live API calls.
+- Fixture cards (listed in task description) untouched throughout. Only the `aa38f7e2-bd79-469b-9003-4f331f73200b` test card created during TC2 was trashed at cleanup.
+- TC9 and TC12 simulation used `htb.note_save` directly rather than the GUI — this is a valid equivalent since the conflict detection path (`content-conflict` in `note_save`) is identical regardless of how the remote was changed.

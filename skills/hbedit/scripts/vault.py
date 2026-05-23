@@ -1,19 +1,40 @@
-"""hbedit v1 — vault layer: discovery, card->file lookup, sync state.
+"""hbedit v2 — vault discovery, state.json (v2 schema), init.
 
 The vault root is the nearest ancestor directory containing `.hbedit/`
-(the same idea as git locating `.git/`).
+(same idea as git locating `.git/`). state.json maps `path -> {cardId,
+tags}`; it's the single source of truth for which `.md` is bound to
+which card.
 """
 from __future__ import annotations
 
 import json
 import os
-
-import frontmatter
+import tempfile
 
 STATE_DIR = ".hbedit"
 STATE_FILE = "state.json"
+SCHEMA_VERSION = 2
+GITIGNORE_LINES = [".hbedit/local-state.json", ".hbedit/sidecar/"]
 
 
+# -- exceptions ------------------------------------------------------------
+class StateSchemaError(Exception):
+    """state.json has a schemaVersion other than 2."""
+
+
+class StateCorruptError(Exception):
+    """state.json is unparseable JSON or violates invariants."""
+
+
+class NestedVaultError(Exception):
+    """init_vault called inside an existing vault's tree."""
+
+
+class DuplicateCardIdError(Exception):
+    """set_file_entry would map a cardId already used by another path."""
+
+
+# -- vault discovery -------------------------------------------------------
 def find_vault_root(start):
     """Walk up from `start` (a file or dir) to the dir holding `.hbedit/`.
     Returns the vault root path, or None if no vault encloses `start`."""
@@ -29,64 +50,139 @@ def find_vault_root(start):
         d = parent
 
 
-def find_file_by_card_id(vault, card_id):
-    """Scan `vault/notes/**` for the .md whose frontmatter cardId matches.
-    Returns the file path, or None if no match is found (including when
-    `vault/notes/` does not exist — e.g. the first sync of any card)."""
-    notes = os.path.join(vault, "notes")
-    for root, _dirs, files in os.walk(notes):
-        for name in sorted(files):
-            if not name.endswith(".md"):
-                continue
-            path = os.path.join(root, name)
-            try:
-                with open(path, encoding="utf-8") as fh:
-                    text = fh.read()
-            except OSError:
-                continue
-            # frontmatter.parse is a hand-rolled parser; a malformed file
-            # must not abort the whole scan.
-            try:
-                meta, _ = frontmatter.parse(text)
-            except Exception:
-                continue
-            hb = meta.get(frontmatter.MANAGED_KEY, {})
-            if hb.get("cardId") == card_id:
-                return path
-    return None
-
-
-# -- sync state (.hbedit/state.json) --------------------------------------
 def _state_path(vault):
     return os.path.join(vault, STATE_DIR, STATE_FILE)
 
 
-def load_state(vault):
-    """Return the parsed state.json, or a fresh skeleton if absent/corrupt."""
+def _atomic_write(path, text):
+    """Write to a temp file in the same dir, then rename. Prevents
+    leaving a half-written state.json on a crash mid-write."""
+    d = os.path.dirname(path)
+    fd, tmp = tempfile.mkstemp(prefix=".hbedit-state-", dir=d)
     try:
-        with open(_state_path(vault), encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return {"cards": {}}
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+# -- load / save -----------------------------------------------------------
+def load_state(vault):
+    """Return parsed state.json. Returns the empty-v2 skeleton when the
+    file is absent. Raises StateSchemaError on a wrong schemaVersion and
+    StateCorruptError on malformed JSON or invariant violations."""
+    path = _state_path(vault)
+    if not os.path.exists(path):
+        return {"schemaVersion": SCHEMA_VERSION, "files": {}}
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except ValueError as exc:
+        raise StateCorruptError("state.json is not valid JSON: %s" % exc)
+    if not isinstance(data, dict):
+        raise StateCorruptError("state.json must be a JSON object")
+    if data.get("schemaVersion") != SCHEMA_VERSION:
+        raise StateSchemaError(
+            "state.json schemaVersion is %r, expected %d"
+            % (data.get("schemaVersion"), SCHEMA_VERSION))
+    if not isinstance(data.get("files"), dict):
+        raise StateCorruptError("state.json `files` must be an object")
+    # invariant: no two paths share a cardId
+    seen = {}
+    for p, entry in data["files"].items():
+        if not isinstance(entry, dict):
+            raise StateCorruptError("files[%r] must be an object" % p)
+        cid = entry.get("cardId")
+        if cid in seen:
+            raise StateCorruptError(
+                "duplicate cardId %s on paths %s and %s" % (cid, seen[cid], p))
+        seen[cid] = p
+    return data
 
 
 def save_state(vault, state):
-    path = _state_path(vault)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
+    """Atomically write state.json. Ensures `.hbedit/` exists."""
+    os.makedirs(os.path.join(vault, STATE_DIR), exist_ok=True)
+    _atomic_write(_state_path(vault),
+                  json.dumps(state, ensure_ascii=False, indent=2))
 
 
-def get_tag_base(vault, card_id):
-    """The tag set recorded at the last sync — the base for 3-way tag merge."""
-    return list(load_state(vault).get("cards", {})
-                .get(card_id, {}).get("tags", []))
-
-
-def set_tag_base(vault, card_id, tags):
-    # If state.json is corrupt, load_state returns a fresh skeleton, so this
-    # write drops other cards' bases. Acceptable: hbedit is a single-writer
-    # CLI and a lost base only forces a 2-way tag fallback on the next push.
+# -- file entry ops --------------------------------------------------------
+def get_file_entry(vault, path):
+    """Return {cardId, tags} for `path` (relative to vault), or None."""
     state = load_state(vault)
-    state.setdefault("cards", {}).setdefault(card_id, {})["tags"] = list(tags)
+    return state["files"].get(path)
+
+
+def set_file_entry(vault, path, card_id, tags):
+    """Register `path -> {cardId, tags}`. Raises DuplicateCardIdError
+    if `card_id` is already mapped to a different path."""
+    state = load_state(vault)
+    for p, entry in state["files"].items():
+        if p != path and entry.get("cardId") == card_id:
+            raise DuplicateCardIdError(
+                "cardId %s already mapped to %s" % (card_id, p))
+    state["files"][path] = {"cardId": card_id, "tags": list(tags)}
     save_state(vault, state)
+
+
+def remove_file_entry(vault, path):
+    """Drop the entry for `path`. No-op if not present."""
+    state = load_state(vault)
+    if path in state["files"]:
+        del state["files"][path]
+        save_state(vault, state)
+
+
+def find_path_by_card_id(vault, card_id):
+    """Return the path mapped to `card_id`, or None."""
+    state = load_state(vault)
+    for p, entry in state["files"].items():
+        if entry.get("cardId") == card_id:
+            return p
+    return None
+
+
+# -- init_vault ------------------------------------------------------------
+def init_vault(cwd):
+    """Create a vault at `cwd`. Returns one of:
+       - "created" — vault freshly created
+       - "already-initialized" — cwd already has its own .hbedit/
+    Raises NestedVaultError if cwd is inside another vault's tree."""
+    own = os.path.join(cwd, STATE_DIR)
+    if os.path.isdir(own):
+        # cwd is the vault root already
+        return "already-initialized"
+    # check ancestors for an existing vault
+    ancestor = find_vault_root(cwd)
+    if ancestor is not None:
+        raise NestedVaultError("vault already exists at %s" % ancestor)
+    os.makedirs(own)
+    save_state(cwd, {"schemaVersion": SCHEMA_VERSION, "files": {}})
+    _update_gitignore(cwd)
+    return "created"
+
+
+def _update_gitignore(cwd):
+    """Append our gitignore lines if not present. Creates .gitignore if
+    absent. Idempotent: lines are only added if missing."""
+    path = os.path.join(cwd, ".gitignore")
+    existing = ""
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            existing = f.read()
+    needed = []
+    existing_lines = {line.strip() for line in existing.splitlines()}
+    for line in GITIGNORE_LINES:
+        if line not in existing_lines:
+            needed.append(line)
+    if not needed:
+        return
+    sep = "" if not existing or existing.endswith("\n") else "\n"
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(sep + "\n".join(needed) + "\n")

@@ -161,12 +161,18 @@ def _push_create(vault, rel_path, body):
             detail=str(exc)), 2
     # Pull fresh metadata to capture contentMd5 + cache sidecar.
     rec = htb.note_read(card_id)
+    # Normalize: rewrite local file with round-tripped content and use its
+    # md5 for localMd5, so the file exactly matches what Heptabase stores.
+    abs_path = os.path.join(vault, rel_path)
+    round_trip_md, _ = pm2md.to_markdown(json.loads(rec["content"]))
+    with open(abs_path, "w", encoding="utf-8") as f:
+        f.write(round_trip_md)
     with open(_sidecar_path(vault, card_id), "w", encoding="utf-8") as f:
         f.write(rec["content"])
     local_state.set_local_entry(
         vault, rel_path,
         content_md5=rec["contentMd5"],
-        local_md5=local_state.body_md5(body),
+        local_md5=local_state.body_md5(round_trip_md),
         synced_at=_now_iso())
     return errors.emit_ok(
         "push", action="created", cardId=card_id, path=rel_path), 0
@@ -209,12 +215,23 @@ def _push_update(vault, rel_path, body, card_id):
             detail=htb.error_detail(exc)), 2
     # Refresh sidecar + local-state from the saved card.
     rec = htb.note_read(card_id)
+    # Compute localMd5 from the round-tripped markdown (what Heptabase
+    # actually stores) rather than from `body`.  Heptabase normalizes
+    # content (e.g. strips trailing newlines) during md→ProseMirror→md
+    # conversion, so using `body` would produce a stale localMd5 that
+    # mis-triggers "conflict" on the next fresh-clone smart pull.
+    # Also rewrite the local file with normalized content so it matches
+    # exactly what Heptabase stores — keeping LL == RR on fresh clones.
+    round_trip_md, _ = pm2md.to_markdown(json.loads(rec["content"]))
+    abs_path = os.path.join(vault, rel_path)
+    with open(abs_path, "w", encoding="utf-8") as f:
+        f.write(round_trip_md)
     with open(sidecar, "w", encoding="utf-8") as f:
         f.write(rec["content"])
     local_state.set_local_entry(
         vault, rel_path,
         content_md5=rec["contentMd5"],
-        local_md5=local_state.body_md5(body),
+        local_md5=local_state.body_md5(round_trip_md),
         synced_at=_now_iso())
     detail = {k: len(report[k]) for k in
               ("preserved", "edited", "reordered", "inserted", "deleted")}

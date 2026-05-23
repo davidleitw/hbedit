@@ -27,7 +27,7 @@ STATE_CORRUPT = "state-corrupt"
 
 # Path tracking
 PATH_NOT_TRACKED = "path-not-tracked"
-CARDID_ALREADY_TRACKED = "cardId-already-tracked"
+CARD_ID_ALREADY_TRACKED = "cardId-already-tracked"
 
 # Sync / conflict
 NO_BASELINE = "no-baseline"
@@ -41,7 +41,7 @@ TAG_NOT_ON_CARD = "tag-not-on-card"
 
 
 # -- JSON output helpers ---------------------------------------------------
-def _serialize(obj):
+def serialize(obj):
     """Emit a single-line JSON string with stable key order, UTF-8 safe."""
     return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
 
@@ -52,7 +52,7 @@ def emit_ok(command, **fields):
     for k, v in fields.items():
         if v is not None:
             out[k] = v
-    return _serialize(out)
+    return serialize(out)
 
 
 def emit_error(command, code, **fields):
@@ -61,4 +61,4 @@ def emit_error(command, code, **fields):
     for k, v in fields.items():
         if v is not None:
             out[k] = v
-    return _serialize(out)
+    return serialize(out)

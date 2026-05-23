@@ -16,7 +16,7 @@ def test_error_codes_constants_exist():
         "NOT_IN_VAULT", "FILE_NOT_FOUND", "PATH_EXISTS_UNTRACKED",
         "PATH_NOT_TRACKED", "NO_BASELINE", "CONTENT_CONFLICT",
         "TAG_AMBIGUITY", "CARD_NOT_FOUND", "TAG_NOT_ON_CARD",
-        "CARDID_ALREADY_TRACKED", "STATE_SCHEMA_UNSUPPORTED",
+        "CARD_ID_ALREADY_TRACKED", "STATE_SCHEMA_UNSUPPORTED",
         "STATE_CORRUPT", "VAULT_NESTED", "LOCAL_HAS_CHANGES",
     }
     for name in expected:
@@ -27,7 +27,7 @@ def test_error_codes_are_kebab_case():
     # Constants hold the wire string used in JSON output.
     assert errors.NO_BASELINE == "no-baseline"
     assert errors.PATH_NOT_TRACKED == "path-not-tracked"
-    assert errors.CARDID_ALREADY_TRACKED == "cardId-already-tracked"
+    assert errors.CARD_ID_ALREADY_TRACKED == "cardId-already-tracked"
 
 
 def test_emit_ok():
@@ -53,3 +53,10 @@ def test_emit_error_skips_none_fields():
     obj = json.loads(s)
     assert "path" not in obj
     assert obj["detail"] == "hi"
+
+
+def test_emit_ok_skips_none_fields():
+    s = errors.emit_ok("init", action="created", path=None)
+    obj = json.loads(s)
+    assert "path" not in obj
+    assert obj["action"] == "created"

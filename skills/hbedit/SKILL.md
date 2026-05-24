@@ -38,15 +38,15 @@ Error Code SOPs section below and follow the steps there before proceeding.
 | Layer | Path | Purpose | In git? |
 | --- | --- | --- | --- |
 | Content | `<anywhere>/*.md` | User-edited markdown, no frontmatter | Yes — commit |
-| Public state | `.hbedit/state.json` | `path → {cardId, tags}` registry | Yes — commit |
-| Local cache | `.hbedit/local-state.json` | `path → {contentMd5, localMd5, syncedAt}` per-machine | No — gitignored |
-| Block cache | `.hbedit/sidecar/<cardId>.json` | ProseMirror JSON for block-ID transplant | No — gitignored |
-
-`hb init` auto-populates `.gitignore` to exclude `local-state.json` and `sidecar/`.
+| Public state | `.hbedit/state.json` | `path → {cardId, tags}` registry plus `vaultId` (UUIDv4, set at `hb init`) | Yes — commit |
+| Local cache | `~/.hbedit/cache/<vault-id>/local-state.json` | `path → {contentMd5, localMd5, syncedAt}` per-machine | Lives outside the project; not tracked |
+| Block cache | `~/.hbedit/cache/<vault-id>/sidecar/<cardId>.json` | ProseMirror JSON for block-ID transplant | Lives outside the project; not tracked |
 
 ### Vault discovery
 
-A directory is an hbedit vault if it or any ancestor contains `.hbedit/`.
+A directory is an hbedit vault if it or any ancestor contains
+`.hbedit/state.json`. The state file (not just the directory) is what
+identifies a vault — an empty `.hbedit/` anywhere does not count.
 Commands walk up from the given path to find the vault root (like `git` and
 `.git/`). Running from any subdirectory works.
 
@@ -75,7 +75,10 @@ Errors: `cli-missing`, `cli-version-unsupported`, `app-not-running`.
 ### `hb init`
 
 Initialize a vault in the current directory. Creates `.hbedit/state.json`
-(schema v2, empty files map) and gitignores `local-state.json` + `sidecar/`.
+with a fresh `vaultId` (UUIDv4) and an empty `files` registry. The
+per-machine cache directory `~/.hbedit/cache/<vault-id>/` is created lazily
+on the first push/pull. No `.gitignore` is written — v3 keeps all
+per-machine state out of the project tree.
 Idempotent — running inside an existing vault emits `action: "already-initialized"`.
 
 ```json
@@ -207,7 +210,8 @@ Errors: `path-not-tracked`, `not-in-vault`, `tag-not-on-card`.
 
 ### SOP C — Continue editing on a second machine after git clone
 
-After `git clone`, `local-state.json` and `sidecar/` are absent (gitignored).
+After `git clone`, the per-machine cache (`~/.hbedit/cache/<vault-id>/`) is
+absent on the new machine — only `.hbedit/state.json` is committed.
 The first operation on each tracked file must be `hb pull <path>`.
 
 1. `hb doctor`.
@@ -299,7 +303,7 @@ created and the working `.md` now holds the remote version.
 | `card-not-found` | cardId in state.json doesn't exist on Heptabase (possibly trashed) | 1. Tell user the card may have been trashed remotely. 2. Ask whether to remove the `state.json` entry and treat the file as untracked. 3. If yes, remove the entry manually and proceed. |
 | `tag-not-on-card` | `hb tag remove` for a tag the card doesn't have | 1. Inform user the tag was not present on the card. 2. No further action needed. |
 | `cardId-already-tracked` | First-time pull for a cardId already mapped to a different path | 1. Tell user the card is already linked to `<other-path>`. 2. Ask: edit there instead, or unlink first by removing the `state.json` entry? |
-| `state-schema-unsupported` | `state.json` has `schemaVersion` other than 2 | 1. Inform user the state file is from an incompatible older version. 2. Advise running `hb init` in a fresh directory, or removing `.hbedit/` and starting over. 3. Do not run any other hb command until resolved. |
+| `state-schema-unsupported` | `state.json` has `schemaVersion` other than 3 | 1. Inform user the state file is from an incompatible older version. 2. Advise running `hb init` in a fresh directory, or removing `.hbedit/` and starting over. v3 does not migrate v2 state files automatically. 3. Do not run any other hb command until resolved. |
 | `state-corrupt` | `state.json` is invalid JSON or violates schema invariants | 1. Stop immediately. Do not run any other hb command. 2. Show user the corrupt content. 3. Ask them to fix it by hand or restore from git history. |
 | `vault-nested` | `hb init` called inside an existing vault's tree | 1. Tell user there is already a vault at `<ancestor-path>`. 2. Ask: use that one, or remove the ancestor's `.hbedit/` if a separate vault is intentional? |
 | `local-has-changes` | `hb pull` would overwrite a file with uncommitted local edits | 1. Tell user the local file diverges from the last sync. 2. Ask: push these changes first (`hb push <path>`), or discard them? 3. Proceed based on user choice; if discarding, revert the file manually before retrying pull. |

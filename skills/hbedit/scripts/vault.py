@@ -10,6 +10,15 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from dataclasses import dataclass
+
+@dataclass
+class VaultInfo:
+    """Bundle returned by `find()`. Single source of truth for cache_dir."""
+    root: str        # vault root path (the dir containing .hbedit/)
+    state: dict      # parsed state.json
+    cache_dir: str   # ~/.hbedit/cache/<vault-id>/
+
 
 STATE_DIR = ".hbedit"
 STATE_FILE = "state.json"
@@ -84,6 +93,20 @@ def cache_dir(vault_id):
     os.makedirs(..., exist_ok=True) as needed.
     """
     return os.path.join(os.path.expanduser("~"), ".hbedit", "cache", vault_id)
+
+
+def find(start):
+    """High-level vault lookup. Returns a VaultInfo bundling root, state
+    and per-machine cache_dir. Returns None if `start` is not inside a
+    vault. Raises StateSchemaError / StateCorruptError just like
+    load_state() if the state.json is unreadable.
+    """
+    root = find_vault_root(start)
+    if root is None:
+        return None
+    state = load_state(root)
+    cd = cache_dir(state["vaultId"])
+    return VaultInfo(root=root, state=state, cache_dir=cd)
 
 
 # -- load / save -----------------------------------------------------------

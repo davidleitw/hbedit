@@ -163,3 +163,49 @@ def test_init_vault_appends_to_existing_gitignore_without_duplicates():
         # New entries present exactly once
         assert text.count(".hbedit/local-state.json") == 1
         assert text.count(".hbedit/sidecar/") == 1
+
+
+# -- VaultInfo / find() -----------------------------------------------------
+def test_find_returns_none_when_no_vault():
+    with tempfile.TemporaryDirectory() as root:
+        assert vaultlib.find(root) is None
+
+
+def test_find_returns_vault_info_with_root_state_cache_dir():
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, ".hbedit"))
+        seed = {"schemaVersion": 2,
+                "files": {"docs/a.md": {"cardId": "c1", "tags": []}}}
+        vaultlib.save_state(root, seed)
+        # Inject vaultId by hand so this test runs even before schema bump.
+        # (Task 4 will add vaultId via init_vault; here we set it directly.)
+        path = os.path.join(root, ".hbedit", "state.json")
+        import json as _json
+        with open(path, "r") as f:
+            data = _json.load(f)
+        data["vaultId"] = "v-uuid-1"
+        with open(path, "w") as f:
+            _json.dump(data, f)
+        info = vaultlib.find(root)
+        assert info.root == root
+        assert info.state["files"]["docs/a.md"]["cardId"] == "c1"
+        assert info.cache_dir == os.path.join(
+            os.path.expanduser("~"), ".hbedit", "cache", "v-uuid-1")
+
+
+def test_find_walks_up_like_find_vault_root():
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, ".hbedit"))
+        seed = {"schemaVersion": 2,
+                "vaultId": "v-uuid-2",
+                "files": {}}
+        # Write state.json directly with vaultId.
+        import json as _json
+        path = os.path.join(root, ".hbedit", "state.json")
+        with open(path, "w") as f:
+            _json.dump(seed, f)
+        sub = os.path.join(root, "a", "b")
+        os.makedirs(sub)
+        info = vaultlib.find(sub)
+        assert info.root == root
+        assert info.state["vaultId"] == "v-uuid-2"

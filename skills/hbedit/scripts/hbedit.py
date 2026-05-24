@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
-"""hbedit v3 — minimal CLI entry point.
+"""hbedit v3 — Heptabase card editing through local markdown files.
 
-  hb doctor                              preflight check
-  hb init                                initialize a vault in cwd
-  hb push <path>                         sync local edits to Heptabase
-  hb pull <cardId> <path>                first-time pull of a card
-  hb pull <path>                         smart-compare pull of a tracked path
-  hb tag add <path> <name>               add a tag to the bound card
-  hb tag remove <path> <name>            remove a tag from the bound card
+Run `hb --help` or `hb <cmd> --help` for full usage. Top-level commands:
+  hb doctor, init, push, pull, tag add|remove, unlink.
 
 UNOFFICIAL — talks only to the official `heptabase` CLI.
 """
 from __future__ import annotations
 
+import argparse
 import os
 import shutil
 import sys
@@ -625,40 +621,85 @@ def _handle_conflict(vault, cd, rel_path, local_body, card_id):
                % os.path.relpath(backup, vault)), 2
 
 
+def _build_parser():
+    """Construct the argparse parser for `hb`. Each sub-command's `help`
+    string is what shows up in `hb --help`; their own `--help` is
+    auto-generated from add_argument calls."""
+    parser = argparse.ArgumentParser(
+        prog="hb",
+        description="hbedit — edit Heptabase cards through local markdown "
+                    "files. UNOFFICIAL — talks only to the official "
+                    "`heptabase` CLI.")
+    sub = parser.add_subparsers(dest="command", required=True,
+                                metavar="<command>")
+
+    sub.add_parser("doctor",
+                   help="preflight: verify CLI + desktop app + report cache")
+    sub.add_parser("init",
+                   help="initialize an hbedit vault in the current directory")
+
+    p_push = sub.add_parser(
+        "push", help="sync a tracked or new local .md up to Heptabase")
+    p_push.add_argument("path", help="markdown file to push")
+
+    p_pull = sub.add_parser(
+        "pull",
+        help="pull from Heptabase — `hb pull <path>` smart-syncs a tracked "
+             "file; `hb pull <cardId> <path>` first-time binds a new path")
+    p_pull.add_argument("first", metavar="path-or-cardId")
+    p_pull.add_argument("second", nargs="?", default=None,
+                        metavar="path",
+                        help="provide only when first arg is a cardId")
+
+    p_tag = sub.add_parser("tag", help="add or remove a tag on a tracked card")
+    tag_sub = p_tag.add_subparsers(dest="tag_action", required=True,
+                                   metavar="<add|remove>")
+    p_tag_add = tag_sub.add_parser("add", help="add a tag to the bound card")
+    p_tag_add.add_argument("path")
+    p_tag_add.add_argument("name")
+    p_tag_remove = tag_sub.add_parser("remove",
+                                      help="remove a tag from the bound card")
+    p_tag_remove.add_argument("path")
+    p_tag_remove.add_argument("name")
+
+    p_unlink = sub.add_parser(
+        "unlink",
+        help="remove the path's binding (state + cache); leave the local "
+             ".md and the remote Heptabase card untouched")
+    p_unlink.add_argument("path")
+
+    return parser
+
+
 def main(argv):
-    if len(argv) == 2 and argv[1] == "doctor":
+    parser = _build_parser()
+    args = parser.parse_args(argv[1:])
+
+    if args.command == "doctor":
         out, rc = doctor()
-        print(out)
-        return rc
-    if len(argv) == 2 and argv[1] == "init":
+    elif args.command == "init":
         out, rc = init(os.getcwd())
-        print(out)
-        return rc
-    if len(argv) == 3 and argv[1] == "push":
-        out, rc = push(argv[2])
-        print(out)
-        return rc
-    if len(argv) == 3 and argv[1] == "pull":
-        # 3 args = hb pull <path>
-        out, rc = pull_smart(argv[2])
-        print(out)
-        return rc
-    if len(argv) == 4 and argv[1] == "pull":
-        # 4 args = hb pull <cardId> <path>
-        out, rc = pull_first_time(argv[2], argv[3])
-        print(out)
-        return rc
-    if len(argv) == 5 and argv[1] == "tag" and argv[2] == "add":
-        out, rc = tag_add(argv[3], argv[4])
-        print(out)
-        return rc
-    if len(argv) == 5 and argv[1] == "tag" and argv[2] == "remove":
-        out, rc = tag_remove(argv[3], argv[4])
-        print(out)
-        return rc
-    # Other commands land in subsequent tasks.
-    print(__doc__)
-    return 1
+    elif args.command == "push":
+        out, rc = push(args.path)
+    elif args.command == "pull":
+        if args.second is None:
+            out, rc = pull_smart(args.first)
+        else:
+            out, rc = pull_first_time(args.first, args.second)
+    elif args.command == "tag":
+        if args.tag_action == "add":
+            out, rc = tag_add(args.path, args.name)
+        else:
+            out, rc = tag_remove(args.path, args.name)
+    elif args.command == "unlink":
+        out, rc = unlink(args.path)
+    else:
+        # argparse with required=True should make this unreachable,
+        # but keep a defensive fallback.
+        parser.print_help()
+        return 1
+    print(out)
+    return rc
 
 
 if __name__ == "__main__":

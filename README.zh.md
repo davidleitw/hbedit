@@ -67,3 +67,15 @@ block 編號有保留下來,指向這張卡的連結和引用都不會斷。
 
 **v1** —— note 卡片的 pull / 編輯 / push,含衝突偵測與 tag 同步。
 安裝步驟:[`INSTALL.md`](./INSTALL.md)。
+
+## 本地開發
+
+在改 skill 本身?不用全域安裝,直接把這個目錄 load 進一個 Claude Code
+session:
+
+```bash
+claude --plugin-dir /path/to/hbedit
+```
+
+`--plugin-dir` **只對該 session** 生效 —— 改完 `skills/hbedit/SKILL.md`、
+重開 session 就在測新版,不留任何殘留要清。

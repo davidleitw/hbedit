@@ -87,7 +87,7 @@ def test_error_codes_constants_exist():
         "NOT_IN_VAULT", "FILE_NOT_FOUND", "PATH_EXISTS_UNTRACKED",
         "PATH_NOT_TRACKED", "NO_BASELINE", "CONTENT_CONFLICT",
         "TAG_AMBIGUITY", "CARD_NOT_FOUND", "TAG_NOT_ON_CARD",
-        "CARDID_ALREADY_TRACKED", "STATE_SCHEMA_UNSUPPORTED",
+        "CARD_ID_ALREADY_TRACKED", "STATE_SCHEMA_UNSUPPORTED",
         "STATE_CORRUPT", "VAULT_NESTED", "LOCAL_HAS_CHANGES",
     }
     for name in expected:
@@ -98,7 +98,7 @@ def test_error_codes_are_kebab_case():
     # Constants hold the wire string used in JSON output.
     assert errors.NO_BASELINE == "no-baseline"
     assert errors.PATH_NOT_TRACKED == "path-not-tracked"
-    assert errors.CARDID_ALREADY_TRACKED == "cardId-already-tracked"
+    assert errors.CARD_ID_ALREADY_TRACKED == "cardId-already-tracked"
 
 
 def test_emit_ok():
@@ -169,7 +169,7 @@ STATE_CORRUPT = "state-corrupt"
 
 # Path tracking
 PATH_NOT_TRACKED = "path-not-tracked"
-CARDID_ALREADY_TRACKED = "cardId-already-tracked"
+CARD_ID_ALREADY_TRACKED = "cardId-already-tracked"
 
 # Sync / conflict
 NO_BASELINE = "no-baseline"
@@ -1308,7 +1308,7 @@ def _push_create(vault, rel_path, body):
         # Shouldn't normally happen (fresh cardId), but guard.
         htb.card_trash(card_id)
         return errors.emit_error(
-            "push", errors.CARDID_ALREADY_TRACKED, path=rel_path,
+            "push", errors.CARD_ID_ALREADY_TRACKED, path=rel_path,
             detail=str(exc)), 2
     # Pull fresh metadata to capture contentMd5 + cache sidecar.
     rec = htb.note_read(card_id)
@@ -1521,7 +1521,7 @@ def pull_first_time(card_id, path):
     existing = vaultlib.find_path_by_card_id(vault, card_id)
     if existing and existing != rel:
         return errors.emit_error(
-            "pull", errors.CARDID_ALREADY_TRACKED, path=rel,
+            "pull", errors.CARD_ID_ALREADY_TRACKED, path=rel,
             detail="card %s is already linked to %s. Use `hb pull %s` to "
                    "refresh that one, or remove its state.json entry first."
                    % (card_id, existing, existing)), 2

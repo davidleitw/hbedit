@@ -73,3 +73,16 @@ official `heptabase` CLI — never to Heptabase's database or files directly.
 
 **v1** — pull / edit / push for note cards, with conflict detection and tag
 sync. Install steps: [`INSTALL.md`](./INSTALL.md).
+
+## Local development
+
+Working on the skill itself? Load it into a Claude Code session without
+installing globally:
+
+```bash
+claude --plugin-dir /path/to/hbedit
+```
+
+`--plugin-dir` loads the plugin **for that session only** — edit
+`skills/hbedit/SKILL.md`, restart the session, you're testing the new
+version. Nothing to clean up.

@@ -134,15 +134,16 @@ def push(path):
         return errors.emit_error("push", errors.STATE_CORRUPT,
                                  detail=str(exc)), 2
 
+    cd = vaultlib.cache_dir(state["vaultId"])
     entry = state["files"].get(rel)
     body = _read_body(path)
 
     if entry is None:
-        return _push_create(vault, rel, body)
-    return _push_update(vault, rel, body, entry["cardId"])
+        return _push_create(vault, cd, rel, body)
+    return _push_update(vault, cd, rel, body, entry["cardId"])
 
 
-def _push_create(vault, rel_path, body):
+def _push_create(vault, cd, rel_path, body):
     """Create a new card from `body`, register in state.json + local-state."""
     try:
         result = htb.note_create(body)
@@ -170,7 +171,7 @@ def _push_create(vault, rel_path, body):
     with open(_sidecar_path(vault, card_id), "w", encoding="utf-8") as f:
         f.write(rec["content"])
     local_state.set_local_entry(
-        vault, rel_path,
+        cd, rel_path,
         content_md5=rec["contentMd5"],
         local_md5=local_state.body_md5(round_trip_md),
         synced_at=_now_iso())
@@ -178,10 +179,10 @@ def _push_create(vault, rel_path, body):
         "push", action="created", cardId=card_id, path=rel_path), 0
 
 
-def _push_update(vault, rel_path, body, card_id):
+def _push_update(vault, cd, rel_path, body, card_id):
     """Update an existing card using block-ID transplant from sidecar."""
     sidecar = _sidecar_path(vault, card_id)
-    entry = local_state.get_local_entry(vault, rel_path)
+    entry = local_state.get_local_entry(cd, rel_path)
     if entry is None or not os.path.exists(sidecar):
         return errors.emit_error(
             "push", errors.NO_BASELINE, path=rel_path,
@@ -200,7 +201,7 @@ def _push_update(vault, rel_path, body, card_id):
                 htb.note_save(card_id, json.dumps(new_doc), lock_md5)
             except htb.HtbError as exc:
                 if "content conflict" in htb.error_detail(exc).lower():
-                    return _handle_conflict(vault, rel_path, body, card_id)
+                    return _handle_conflict(vault, cd, rel_path, body, card_id)
                 if "card not found" in htb.error_detail(exc).lower():
                     return errors.emit_error(
                         "push", errors.CARD_NOT_FOUND, path=rel_path,
@@ -229,7 +230,7 @@ def _push_update(vault, rel_path, body, card_id):
     with open(sidecar, "w", encoding="utf-8") as f:
         f.write(rec["content"])
     local_state.set_local_entry(
-        vault, rel_path,
+        cd, rel_path,
         content_md5=rec["contentMd5"],
         local_md5=local_state.body_md5(round_trip_md),
         synced_at=_now_iso())
@@ -294,8 +295,9 @@ def pull_first_time(card_id, path):
     props = htb.card_properties(card_id)
     tags = sorted({t["tagName"] for t in props.get("tags", [])})
     vaultlib.set_file_entry(vault, rel, card_id, tags)
+    cd = vaultlib.cache_dir(state["vaultId"])
     local_state.set_local_entry(
-        vault, rel,
+        cd, rel,
         content_md5=rec["contentMd5"],
         local_md5=local_state.body_md5(remote_md),
         synced_at=_now_iso())
@@ -322,6 +324,7 @@ def pull_smart(path):
         return errors.emit_error("pull", errors.STATE_CORRUPT,
                                  detail=str(exc)), 2
 
+    cd = vaultlib.cache_dir(state["vaultId"])
     entry = state["files"].get(rel)
     if entry is None:
         return errors.emit_error(
@@ -355,7 +358,7 @@ def pull_smart(path):
         local_md = None
         ll = None
 
-    local_entry = local_state.get_local_entry(vault, rel)
+    local_entry = local_state.get_local_entry(cd, rel)
     ls = local_entry["localMd5"] if local_entry else None
 
     # Refresh remote tags into state.json
@@ -367,21 +370,21 @@ def pull_smart(path):
     if ls is None:
         # Fresh-clone case (or first pull-by-path after a state.json edit).
         if ll == rr:
-            return _baseline_established(vault, rel, card_id, rec, remote_md, tags)
+            return _baseline_established(vault, cd, rel, card_id, rec, remote_md, tags)
         # Differ or local missing.
         if ll is not None:
             _backup_local(abs_path, local_md)
         return _write_remote_and_baseline(
-            vault, rel, abs_path, card_id, rec, remote_md, tags,
+            vault, cd, rel, abs_path, card_id, rec, remote_md, tags,
             action="conflict" if ll is not None else "created")
     # Has baseline:
     if ll == ls:
         # Local clean.
         if rr == ls:
-            return _refresh_synced_at(vault, rel, card_id, rec, tags,
+            return _refresh_synced_at(cd, rel, card_id, rec, tags,
                                       action="noop")
         return _write_remote_and_baseline(
-            vault, rel, abs_path, card_id, rec, remote_md, tags,
+            vault, cd, rel, abs_path, card_id, rec, remote_md, tags,
             action="updated")
     # Local diverged from baseline.
     if rr == ls:
@@ -392,16 +395,16 @@ def pull_smart(path):
     # Both diverged.
     _backup_local(abs_path, local_md)
     return _write_remote_and_baseline(
-        vault, rel, abs_path, card_id, rec, remote_md, tags,
+        vault, cd, rel, abs_path, card_id, rec, remote_md, tags,
         action="conflict")
 
 
-def _baseline_established(vault, rel, card_id, rec, remote_md, tags):
+def _baseline_established(vault, cd, rel, card_id, rec, remote_md, tags):
     """Write local-state + sidecar without touching the working file."""
     with open(_sidecar_path(vault, card_id), "w", encoding="utf-8") as f:
         f.write(rec["content"])
     local_state.set_local_entry(
-        vault, rel,
+        cd, rel,
         content_md5=rec["contentMd5"],
         local_md5=local_state.body_md5(remote_md),
         synced_at=_now_iso())
@@ -410,10 +413,10 @@ def _baseline_established(vault, rel, card_id, rec, remote_md, tags):
                           detail={"tags": tags}), 0
 
 
-def _refresh_synced_at(vault, rel, card_id, rec, tags, action):
-    entry = local_state.get_local_entry(vault, rel)
+def _refresh_synced_at(cd, rel, card_id, rec, tags, action):
+    entry = local_state.get_local_entry(cd, rel)
     local_state.set_local_entry(
-        vault, rel,
+        cd, rel,
         content_md5=entry["contentMd5"],
         local_md5=entry["localMd5"],
         synced_at=_now_iso())
@@ -422,7 +425,7 @@ def _refresh_synced_at(vault, rel, card_id, rec, tags, action):
                           detail={"tags": tags}), 0
 
 
-def _write_remote_and_baseline(vault, rel, abs_path, card_id, rec,
+def _write_remote_and_baseline(vault, cd, rel, abs_path, card_id, rec,
                                remote_md, tags, action):
     os.makedirs(os.path.dirname(abs_path) or ".", exist_ok=True)
     with open(abs_path, "w", encoding="utf-8") as f:
@@ -430,7 +433,7 @@ def _write_remote_and_baseline(vault, rel, abs_path, card_id, rec,
     with open(_sidecar_path(vault, card_id), "w", encoding="utf-8") as f:
         f.write(rec["content"])
     local_state.set_local_entry(
-        vault, rel,
+        cd, rel,
         content_md5=rec["contentMd5"],
         local_md5=local_state.body_md5(remote_md),
         synced_at=_now_iso())
@@ -544,7 +547,7 @@ def _backup_local(abs_path, body):
         f.write(body)
 
 
-def _handle_conflict(vault, rel_path, local_body, card_id):
+def _handle_conflict(vault, cd, rel_path, local_body, card_id):
     """Remote changed since last pull: back up local body, re-pull remote
     over the working file, return a content-conflict response."""
     abs_path = os.path.join(vault, rel_path)
@@ -565,7 +568,7 @@ def _handle_conflict(vault, rel_path, local_body, card_id):
     with open(_sidecar_path(vault, card_id), "w", encoding="utf-8") as f:
         f.write(rec["content"])
     local_state.set_local_entry(
-        vault, rel_path,
+        cd, rel_path,
         content_md5=rec["contentMd5"],
         local_md5=local_state.body_md5(remote_body),
         synced_at=_now_iso())

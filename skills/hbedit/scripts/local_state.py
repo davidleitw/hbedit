@@ -1,10 +1,14 @@
-"""hbedit v2 — per-machine sync cache (`.hbedit/local-state.json`).
+"""hbedit v3 — per-machine sync cache (`~/.hbedit/cache/<vault-id>/local-state.json`).
 
-This file is gitignored. It records, for each tracked path:
+For each tracked path this file records:
 - contentMd5: the remote ProseMirror md5 at last sync (push lock)
 - localMd5:   the md5 of the local .md body at last sync (used to detect
               uncommitted local changes before a pull would overwrite)
 - syncedAt:   ISO-8601 UTC timestamp of the last sync
+
+Cache lives outside the project tree (under the user's home), keyed by
+vault-id from state.json so machine A and machine B share the same key
+after a git clone.
 
 Corruption recovery: unlike state.json (authoritative, fail-loud on
 corruption), local-state.json is rebuildable by re-pulling each tracked
@@ -32,8 +36,8 @@ def body_md5(text):
     return hashlib.md5(normalized.encode("utf-8")).hexdigest()
 
 
-def _path(vault):
-    return os.path.join(vault, ".hbedit", LOCAL_STATE_FILE)
+def _path(cache_dir):
+    return os.path.join(cache_dir, LOCAL_STATE_FILE)
 
 
 def _atomic_write(path, text):
@@ -55,9 +59,9 @@ def _empty():
     return {"schemaVersion": SCHEMA_VERSION, "files": {}}
 
 
-def load_local_state(vault):
+def load_local_state(cache_dir):
     """Return the parsed file, or the empty skeleton if missing or corrupt."""
-    p = _path(vault)
+    p = _path(cache_dir)
     if not os.path.exists(p):
         return _empty()
     try:
@@ -70,29 +74,29 @@ def load_local_state(vault):
     return data
 
 
-def save_local_state(vault, state):
-    os.makedirs(os.path.join(vault, ".hbedit"), exist_ok=True)
-    _atomic_write(_path(vault),
+def save_local_state(cache_dir, state):
+    os.makedirs(cache_dir, exist_ok=True)
+    _atomic_write(_path(cache_dir),
                   json.dumps(state, ensure_ascii=False, indent=2))
 
 
-def get_local_entry(vault, path):
+def get_local_entry(cache_dir, path):
     """Return {contentMd5, localMd5, syncedAt} for path, or None."""
-    return load_local_state(vault)["files"].get(path)
+    return load_local_state(cache_dir)["files"].get(path)
 
 
-def set_local_entry(vault, path, content_md5, local_md5, synced_at):
-    state = load_local_state(vault)
+def set_local_entry(cache_dir, path, content_md5, local_md5, synced_at):
+    state = load_local_state(cache_dir)
     state["files"][path] = {
         "contentMd5": content_md5,
         "localMd5": local_md5,
         "syncedAt": synced_at,
     }
-    save_local_state(vault, state)
+    save_local_state(cache_dir, state)
 
 
-def remove_local_entry(vault, path):
-    state = load_local_state(vault)
+def remove_local_entry(cache_dir, path):
+    state = load_local_state(cache_dir)
     if path in state["files"]:
         del state["files"][path]
-        save_local_state(vault, state)
+        save_local_state(cache_dir, state)

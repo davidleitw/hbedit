@@ -1,5 +1,4 @@
 """Tests for local_state.py."""
-import json
 import os
 import sys
 import tempfile
@@ -11,48 +10,53 @@ import local_state
 
 
 def test_load_missing_returns_empty():
-    with tempfile.TemporaryDirectory() as root:
-        os.makedirs(os.path.join(root, ".hbedit"))
-        assert local_state.load_local_state(root) == \
+    with tempfile.TemporaryDirectory() as cache_dir:
+        assert local_state.load_local_state(cache_dir) == \
             {"schemaVersion": 1, "files": {}}
 
 
 def test_round_trip():
-    with tempfile.TemporaryDirectory() as root:
-        os.makedirs(os.path.join(root, ".hbedit"))
+    with tempfile.TemporaryDirectory() as cache_dir:
         seed = {"schemaVersion": 1,
                 "files": {"docs/a.md": {
                     "contentMd5": "abc", "localMd5": "def",
                     "syncedAt": "2026-01-01T00:00:00Z"}}}
-        local_state.save_local_state(root, seed)
-        assert local_state.load_local_state(root) == seed
+        local_state.save_local_state(cache_dir, seed)
+        assert local_state.load_local_state(cache_dir) == seed
 
 
 def test_get_set_remove_entry():
-    with tempfile.TemporaryDirectory() as root:
-        os.makedirs(os.path.join(root, ".hbedit"))
-        assert local_state.get_local_entry(root, "docs/a.md") is None
+    with tempfile.TemporaryDirectory() as cache_dir:
+        assert local_state.get_local_entry(cache_dir, "docs/a.md") is None
         local_state.set_local_entry(
-            root, "docs/a.md",
-            content_md5="cmd", local_md5="lmd", synced_at="2026-01-01T00:00:00Z")
-        assert local_state.get_local_entry(root, "docs/a.md") == {
+            cache_dir, "docs/a.md",
+            content_md5="cmd", local_md5="lmd",
+            synced_at="2026-01-01T00:00:00Z")
+        assert local_state.get_local_entry(cache_dir, "docs/a.md") == {
             "contentMd5": "cmd", "localMd5": "lmd",
             "syncedAt": "2026-01-01T00:00:00Z",
         }
-        local_state.remove_local_entry(root, "docs/a.md")
-        assert local_state.get_local_entry(root, "docs/a.md") is None
+        local_state.remove_local_entry(cache_dir, "docs/a.md")
+        assert local_state.get_local_entry(cache_dir, "docs/a.md") is None
 
 
 def test_load_local_state_tolerates_corrupt_json():
     # local-state.json is per-machine cache; if it's corrupt we can rebuild
     # by re-pulling, so we treat it as missing rather than aborting like
     # state.json does.
-    with tempfile.TemporaryDirectory() as root:
-        os.makedirs(os.path.join(root, ".hbedit"))
-        with open(os.path.join(root, ".hbedit", "local-state.json"), "w") as f:
+    with tempfile.TemporaryDirectory() as cache_dir:
+        with open(os.path.join(cache_dir, "local-state.json"), "w") as f:
             f.write("{not json")
-        assert local_state.load_local_state(root) == \
+        assert local_state.load_local_state(cache_dir) == \
             {"schemaVersion": 1, "files": {}}
+
+
+def test_save_creates_cache_dir_if_missing():
+    with tempfile.TemporaryDirectory() as parent:
+        cache_dir = os.path.join(parent, "nonexistent", "cache")
+        local_state.save_local_state(cache_dir, {
+            "schemaVersion": 1, "files": {}})
+        assert os.path.isfile(os.path.join(cache_dir, "local-state.json"))
 
 
 def test_body_md5_deterministic():
@@ -65,7 +69,6 @@ def test_body_md5_deterministic():
 
 
 def test_body_md5_normalizes_line_endings():
-    # Don't generate spurious diffs because of CRLF.
     a = local_state.body_md5("a\r\nb\r\n")
     b = local_state.body_md5("a\nb\n")
     assert a == b

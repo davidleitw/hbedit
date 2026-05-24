@@ -117,26 +117,22 @@ def push(path):
         return errors.emit_error("push", errors.FILE_NOT_FOUND,
                                  path=path,
                                  detail="%s does not exist" % path), 2
-    # Locate vault.
-    vault = vaultlib.find_vault_root(path)
-    if vault is None:
-        return errors.emit_error(
-            "push", errors.NOT_IN_VAULT, path=path,
-            detail="%s is not inside an hbedit vault. Run `hb init` in "
-                   "the project root." % path), 2
-    rel = _resolve_vault_relative(vault, path)
-
-    # Load state.json (may raise StateSchemaError / StateCorruptError).
+    # Locate vault and load state in one shot.
     try:
-        state = vaultlib.load_state(vault)
+        info = vaultlib.find(path)
     except vaultlib.StateSchemaError as exc:
         return errors.emit_error("push", errors.STATE_SCHEMA_UNSUPPORTED,
                                  detail=str(exc)), 2
     except vaultlib.StateCorruptError as exc:
         return errors.emit_error("push", errors.STATE_CORRUPT,
                                  detail=str(exc)), 2
-
-    cd = vaultlib.cache_dir(state["vaultId"])
+    if info is None:
+        return errors.emit_error(
+            "push", errors.NOT_IN_VAULT, path=path,
+            detail="%s is not inside an hbedit vault. Run `hb init` in "
+                   "the project root." % path), 2
+    vault, state, cd = info.root, info.state, info.cache_dir
+    rel = _resolve_vault_relative(vault, path)
     entry = state["files"].get(rel)
     body = _read_body(path)
 
@@ -245,22 +241,20 @@ def _push_update(vault, cd, rel_path, body, card_id):
 
 def pull_first_time(card_id, path):
     """Implement `hb pull <cardId> <path>` — first-time pull to a new path."""
-    vault = vaultlib.find_vault_root(path) or vaultlib.find_vault_root(os.getcwd())
-    if vault is None:
-        return errors.emit_error(
-            "pull", errors.NOT_IN_VAULT, path=path,
-            detail="no .hbedit/ found at or above %s" % path), 2
-    rel = _resolve_vault_relative(vault, path)
-
-    # Load state.json (validates schema + invariants).
     try:
-        state = vaultlib.load_state(vault)
+        info = vaultlib.find(path) or vaultlib.find(os.getcwd())
     except vaultlib.StateSchemaError as exc:
         return errors.emit_error("pull", errors.STATE_SCHEMA_UNSUPPORTED,
                                  detail=str(exc)), 2
     except vaultlib.StateCorruptError as exc:
         return errors.emit_error("pull", errors.STATE_CORRUPT,
                                  detail=str(exc)), 2
+    if info is None:
+        return errors.emit_error(
+            "pull", errors.NOT_IN_VAULT, path=path,
+            detail="no .hbedit/ found at or above %s" % path), 2
+    vault, state, cd = info.root, info.state, info.cache_dir
+    rel = _resolve_vault_relative(vault, path)
 
     # Refuse if cardId is already mapped elsewhere.
     existing = vaultlib.find_path_by_card_id(vault, card_id)
@@ -292,7 +286,6 @@ def pull_first_time(card_id, path):
     os.makedirs(os.path.dirname(abs_path) or ".", exist_ok=True)
     with open(abs_path, "w", encoding="utf-8") as f:
         f.write(remote_md)
-    cd = vaultlib.cache_dir(state["vaultId"])
     with open(_sidecar_path(cd, card_id), "w", encoding="utf-8") as f:
         f.write(rec["content"])
     props = htb.card_properties(card_id)
@@ -310,23 +303,21 @@ def pull_first_time(card_id, path):
 
 def pull_smart(path):
     """Implement `hb pull <path>` — smart-compare pull of a tracked path."""
-    vault = vaultlib.find_vault_root(path) or vaultlib.find_vault_root(os.getcwd())
-    if vault is None:
-        return errors.emit_error(
-            "pull", errors.NOT_IN_VAULT, path=path,
-            detail="no .hbedit/ found at or above %s" % path), 2
-    rel = _resolve_vault_relative(vault, path)
-
     try:
-        state = vaultlib.load_state(vault)
+        info = vaultlib.find(path) or vaultlib.find(os.getcwd())
     except vaultlib.StateSchemaError as exc:
         return errors.emit_error("pull", errors.STATE_SCHEMA_UNSUPPORTED,
                                  detail=str(exc)), 2
     except vaultlib.StateCorruptError as exc:
         return errors.emit_error("pull", errors.STATE_CORRUPT,
                                  detail=str(exc)), 2
+    if info is None:
+        return errors.emit_error(
+            "pull", errors.NOT_IN_VAULT, path=path,
+            detail="no .hbedit/ found at or above %s" % path), 2
+    vault, state, cd = info.root, info.state, info.cache_dir
+    rel = _resolve_vault_relative(vault, path)
 
-    cd = vaultlib.cache_dir(state["vaultId"])
     entry = state["files"].get(rel)
     if entry is None:
         return errors.emit_error(
@@ -455,21 +446,20 @@ def tag_remove(path, name):
 
 
 def _tag_op(path, name, action):
-    vault = vaultlib.find_vault_root(path) or vaultlib.find_vault_root(os.getcwd())
-    if vault is None:
-        return errors.emit_error(
-            "tag", errors.NOT_IN_VAULT, path=path,
-            detail="no .hbedit/ found at or above %s" % path), 2
-    rel = _resolve_vault_relative(vault, path)
-
     try:
-        state = vaultlib.load_state(vault)
+        info = vaultlib.find(path) or vaultlib.find(os.getcwd())
     except vaultlib.StateSchemaError as exc:
         return errors.emit_error("tag", errors.STATE_SCHEMA_UNSUPPORTED,
                                  detail=str(exc)), 2
     except vaultlib.StateCorruptError as exc:
         return errors.emit_error("tag", errors.STATE_CORRUPT,
                                  detail=str(exc)), 2
+    if info is None:
+        return errors.emit_error(
+            "tag", errors.NOT_IN_VAULT, path=path,
+            detail="no .hbedit/ found at or above %s" % path), 2
+    vault, state, cd = info.root, info.state, info.cache_dir
+    rel = _resolve_vault_relative(vault, path)
 
     entry = state["files"].get(rel)
     if entry is None:

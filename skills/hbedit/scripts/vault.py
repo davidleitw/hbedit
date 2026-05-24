@@ -1,4 +1,4 @@
-"""hbedit v2 — vault discovery, state.json (v2 schema), init.
+"""hbedit v3 — vault discovery, state.json (v3 schema), init.
 
 The vault root is the nearest ancestor directory containing `.hbedit/`
 (same idea as git locating `.git/`). state.json maps `path -> {cardId,
@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import uuid
 from dataclasses import dataclass
 
 @dataclass
@@ -22,13 +23,12 @@ class VaultInfo:
 
 STATE_DIR = ".hbedit"
 STATE_FILE = "state.json"
-SCHEMA_VERSION = 2
-GITIGNORE_LINES = [".hbedit/local-state.json", ".hbedit/sidecar/"]
+SCHEMA_VERSION = 3
 
 
 # -- exceptions ------------------------------------------------------------
 class StateSchemaError(Exception):
-    """state.json has a schemaVersion other than 2."""
+    """state.json has a schemaVersion other than 3."""
 
 
 class StateCorruptError(Exception):
@@ -117,7 +117,7 @@ def find(start):
 
 # -- load / save -----------------------------------------------------------
 def load_state(vault):
-    """Return parsed state.json. Returns the empty-v2 skeleton when the
+    """Return parsed state.json. Returns the empty-v3 skeleton when the
     file is absent. Raises StateSchemaError on a wrong schemaVersion and
     StateCorruptError on malformed JSON or invariant violations."""
     path = _state_path(vault)
@@ -197,36 +197,23 @@ def init_vault(cwd):
     """Create a vault at `cwd`. Returns one of:
        - "created" — vault freshly created
        - "already-initialized" — cwd already has its own .hbedit/
-    Raises NestedVaultError if cwd is inside another vault's tree."""
+    Raises NestedVaultError if cwd is inside another vault's tree.
+
+    v3 changes (relative to v2):
+      - state.json gets a `vaultId` (UUIDv4) that travels with the repo.
+      - .gitignore is NOT written: there are no per-machine files left in
+        the project tree.
+    """
     own = os.path.join(cwd, STATE_DIR)
     if os.path.isdir(own):
-        # cwd is the vault root already
         return "already-initialized"
-    # check ancestors for an existing vault
     ancestor = find_vault_root(cwd)
     if ancestor is not None:
         raise NestedVaultError("vault already exists at %s" % ancestor)
     os.makedirs(own)
-    save_state(cwd, {"schemaVersion": SCHEMA_VERSION, "files": {}})
-    _update_gitignore(cwd)
+    save_state(cwd, {
+        "schemaVersion": SCHEMA_VERSION,
+        "vaultId": str(uuid.uuid4()),
+        "files": {},
+    })
     return "created"
-
-
-def _update_gitignore(cwd):
-    """Append our gitignore lines if not present. Creates .gitignore if
-    absent. Idempotent: lines are only added if missing."""
-    path = os.path.join(cwd, ".gitignore")
-    existing = ""
-    if os.path.exists(path):
-        with open(path, encoding="utf-8") as f:
-            existing = f.read()
-    needed = []
-    existing_lines = {line.strip() for line in existing.splitlines()}
-    for line in GITIGNORE_LINES:
-        if line not in existing_lines:
-            needed.append(line)
-    if not needed:
-        return
-    sep = "" if not existing or existing.endswith("\n") else "\n"
-    with open(path, "a", encoding="utf-8") as f:
-        f.write(sep + "\n".join(needed) + "\n")

@@ -40,19 +40,25 @@ def test_load_state_returns_empty_skeleton_when_missing():
     with tempfile.TemporaryDirectory() as root:
         os.makedirs(os.path.join(root, ".hbedit"))
         state = vaultlib.load_state(root)
-        assert state == {"schemaVersion": 2, "files": {}}
+        # The empty skeleton has no vaultId; vaultId is added only at
+        # init_vault time. load_state of an absent file just returns the
+        # bare shape.
+        assert state == {"schemaVersion": 3, "files": {}}
 
 
 def test_load_state_round_trip():
     with tempfile.TemporaryDirectory() as root:
         os.makedirs(os.path.join(root, ".hbedit"))
-        seed = {"schemaVersion": 2,
+        seed = {"schemaVersion": 3,
+                "vaultId": "v-uuid-rt",
                 "files": {"docs/foo.md": {"cardId": "abc", "tags": ["x"]}}}
         vaultlib.save_state(root, seed)
         assert vaultlib.load_state(root) == seed
 
 
-def test_load_state_rejects_v1_schema():
+def test_load_state_rejects_legacy_schema():
+    """Pre-v2 had {cards: {cardId: {...}}} keyed by cardId, no schemaVersion.
+    v3 still rejects it."""
     with tempfile.TemporaryDirectory() as root:
         os.makedirs(os.path.join(root, ".hbedit"))
         with open(os.path.join(root, ".hbedit", "state.json"), "w") as f:
@@ -61,7 +67,20 @@ def test_load_state_rejects_v1_schema():
             vaultlib.load_state(root)
         except vaultlib.StateSchemaError:
             return
-        raise AssertionError("expected StateSchemaError for v1 schema")
+        raise AssertionError("expected StateSchemaError for pre-v2 schema")
+
+
+def test_load_state_rejects_v2_schema():
+    """v2 schemaVersion 2 is no longer supported in v3."""
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, ".hbedit"))
+        with open(os.path.join(root, ".hbedit", "state.json"), "w") as f:
+            f.write('{"schemaVersion": 2, "files": {}}')
+        try:
+            vaultlib.load_state(root)
+        except vaultlib.StateSchemaError:
+            return
+        raise AssertionError("expected StateSchemaError for v2 schema")
 
 
 def test_load_state_rejects_corrupt_json():
@@ -123,17 +142,19 @@ def test_set_file_entry_rejects_duplicate_cardid():
 
 
 # -- init_vault -------------------------------------------------------------
-def test_init_vault_creates_state_and_gitignore():
+def test_init_vault_creates_state_with_vaultid_and_no_gitignore():
     with tempfile.TemporaryDirectory() as root:
         result = vaultlib.init_vault(root)
         assert result == "created"
         assert os.path.isdir(os.path.join(root, ".hbedit"))
         state = vaultlib.load_state(root)
-        assert state == {"schemaVersion": 2, "files": {}}
-        with open(os.path.join(root, ".gitignore")) as f:
-            text = f.read()
-        assert ".hbedit/local-state.json" in text
-        assert ".hbedit/sidecar/" in text
+        assert state["schemaVersion"] == 3
+        assert state["files"] == {}
+        # vaultId is a UUID string (36 chars including hyphens).
+        assert isinstance(state["vaultId"], str)
+        assert len(state["vaultId"]) == 36
+        # No .gitignore is written by hb init in v3.
+        assert not os.path.exists(os.path.join(root, ".gitignore"))
 
 
 def test_init_vault_idempotent_in_own_root():
@@ -157,20 +178,6 @@ def test_init_vault_refuses_inside_existing_vault():
         raise AssertionError("expected NestedVaultError")
 
 
-def test_init_vault_appends_to_existing_gitignore_without_duplicates():
-    with tempfile.TemporaryDirectory() as root:
-        with open(os.path.join(root, ".gitignore"), "w") as f:
-            f.write("# existing\nnode_modules\n")
-        vaultlib.init_vault(root)
-        vaultlib.init_vault(root)  # second call must not duplicate
-        with open(os.path.join(root, ".gitignore")) as f:
-            text = f.read()
-        # Existing content preserved
-        assert "node_modules" in text
-        # New entries present exactly once
-        assert text.count(".hbedit/local-state.json") == 1
-        assert text.count(".hbedit/sidecar/") == 1
-
 
 # -- VaultInfo / find() -----------------------------------------------------
 def test_find_returns_none_when_no_vault():
@@ -181,7 +188,7 @@ def test_find_returns_none_when_no_vault():
 def test_find_returns_vault_info_with_root_state_cache_dir():
     with tempfile.TemporaryDirectory() as root:
         os.makedirs(os.path.join(root, ".hbedit"))
-        seed = {"schemaVersion": 2,
+        seed = {"schemaVersion": 3,
                 "files": {"docs/a.md": {"cardId": "c1", "tags": []}}}
         vaultlib.save_state(root, seed)
         # Inject vaultId by hand so this test runs even before schema bump.
@@ -203,7 +210,7 @@ def test_find_returns_vault_info_with_root_state_cache_dir():
 def test_find_walks_up_like_find_vault_root():
     with tempfile.TemporaryDirectory() as root:
         os.makedirs(os.path.join(root, ".hbedit"))
-        seed = {"schemaVersion": 2,
+        seed = {"schemaVersion": 3,
                 "vaultId": "v-uuid-2",
                 "files": {}}
         # Write state.json directly with vaultId.

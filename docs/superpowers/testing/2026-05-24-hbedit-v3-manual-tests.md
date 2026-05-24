@@ -746,8 +746,8 @@ rm -rf /tmp/hb-tcD
 - **根因**:SKILL.md `When to use` 表把 hbedit 的觸發條件綁在「maintain long-term」的訊號上,但使用者自然語句通常不會明說維護意圖。當 cwd 已經是 vault,agent 該以環境訊號(vault 存在)而非語意訊號(「之後還會改」)作判斷,但 SKILL.md 目前沒寫這條規則,agent 也沒主動 `ls -la` 檢查。
 - **影響**:任何使用者「新增筆記到 vault」的自然 prompt 都可能走錯路;orphan 卡片散落 Heptabase,使用者後續想透過 hbedit 維護時要手動 `hb pull <cardId> <path>` 重綁。
 - **修補方向**:在 SKILL.md description / SOP B 加一條「cwd 含 `.hbedit/state.json` → 任何 markdown→card 操作預設走 hbedit;base CLI 只在沒 vault 或使用者明確要求一次性建立時用」。TC-trigger-C 加了明確維護訊號驗證修補後的新行為。
-- **修補 commit**:(尚未,規劃中)
-- **重測狀態**:TC-trigger-C 待修補後跑
+- **修補 commit**:`02cf678` docs(hbedit)!: rewrite SKILL.md as narrow trigger + default/escape — 新 SKILL.md「Default behavior」表第一列就是「In vault → `hb push`(tracked)」,搭配 escape hatch + `hb unlink` 救回機制。配套 commit:`9314be0` `hb unlink` + `6592509` argparse refactor 讓 `hb <cmd> --help` 全可用。
+- **重測狀態**:待 TC-trigger-C 跑過確認新 SKILL.md 修補成功
 
 ## 設計筆記
 

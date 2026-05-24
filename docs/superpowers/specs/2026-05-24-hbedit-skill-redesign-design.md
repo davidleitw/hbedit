@@ -256,7 +256,7 @@ The redesign is complete when:
 
 1. **`skills/hbedit/SKILL.md`** is ≤ 100 lines (target ~70), uses default + escape hatch routing (no ASK pattern, no full SOP body).
 2. **`skills/hbedit/references/workflows.md`** exists with TOC, contains SOPs A-F and Conflict resolution.
-3. **`skills/hbedit/references/errors.md`** exists, contains all 16 error code SOPs.
+3. **`skills/hbedit/references/errors.md`** exists, contains all 17 error code SOPs.
 4. **`hb unlink <path>`** implemented; 3 new unit tests pass (`tests/test_hbedit.py` or extend existing).
 5. **`hb <cmd> --help`** works without error for: `doctor`, `init`, `push`, `pull`, `tag add`, `tag remove`, `unlink` (Phase 4a complete).
 6. **Manual test matrix** (`docs/superpowers/testing/2026-05-24-hbedit-v3-manual-tests.md`):

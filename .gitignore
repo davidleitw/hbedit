@@ -7,5 +7,21 @@ __pycache__/
 *.pyc
 *.pyo
 
+# test caches
+.pytest_cache/
+
 # macOS
 .DS_Store
+
+# Claude Code local settings
+.claude/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*~
+
+# environment files
+.env
+.env.*

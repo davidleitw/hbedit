@@ -63,9 +63,11 @@ def doctor():
     except OSError as exc:
         return errors.emit_error("doctor", errors.CLI_MISSING,
                                  detail="could not run heptabase: %s" % exc), 2
-    return errors.emit_ok("doctor",
-                          detail="heptabase %s, desktop app reachable"
-                                 % version), 0
+    summary = "heptabase %s, desktop app reachable" % version
+    cache_line = _doctor_cache_line(os.getcwd())
+    if cache_line:
+        summary = summary + "\n" + cache_line
+    return errors.emit_ok("doctor", detail=summary), 0
 
 
 def init(cwd):
@@ -81,6 +83,20 @@ def init(cwd):
 def _now_iso():
     return datetime.datetime.now(datetime.timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ")
+
+
+def _doctor_cache_line(cwd):
+    """Return ` cache: <path> (exists: yes|no)` when cwd is inside a vault.
+    Returns "" when cwd has no enclosing vault, so doctor still works
+    outside any project."""
+    try:
+        info = vaultlib.find(cwd)
+    except (vaultlib.StateSchemaError, vaultlib.StateCorruptError):
+        return ""
+    if info is None:
+        return ""
+    exists = "yes" if os.path.isdir(info.cache_dir) else "no"
+    return "cache: %s (exists: %s)" % (info.cache_dir, exists)
 
 
 def _sidecar_path(cache_dir, card_id):

@@ -229,4 +229,4 @@ clean up afterward.
 
 ## License
 
-MIT (declared in `.claude-plugin/plugin.json`).
+MIT — see [`LICENSE`](./LICENSE).

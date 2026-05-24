@@ -201,4 +201,4 @@ claude --plugin-dir /path/to/hbedit
 
 ## License
 
-MIT(在 `.claude-plugin/plugin.json` 裡宣告)。
+MIT —— 詳見 [`LICENSE`](./LICENSE)。

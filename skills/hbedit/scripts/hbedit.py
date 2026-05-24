@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""hbedit v2 — minimal CLI entry point.
+"""hbedit v3 — minimal CLI entry point.
 
   hb doctor                              preflight check
   hb init                                initialize a vault in cwd
@@ -379,12 +379,12 @@ def pull_smart(path):
     if ls is None:
         # Fresh-clone case (or first pull-by-path after a state.json edit).
         if ll == rr:
-            return _baseline_established(vault, cd, rel, card_id, rec, remote_md, tags)
+            return _baseline_established(cd, rel, card_id, rec, remote_md, tags)
         # Differ or local missing.
         if ll is not None:
             _backup_local(abs_path, local_md)
         return _write_remote_and_baseline(
-            vault, cd, rel, abs_path, card_id, rec, remote_md, tags,
+            cd, rel, abs_path, card_id, rec, remote_md, tags,
             action="conflict" if ll is not None else "created")
     # Has baseline:
     if ll == ls:
@@ -393,7 +393,7 @@ def pull_smart(path):
             return _refresh_synced_at(cd, rel, card_id, rec, tags,
                                       action="noop")
         return _write_remote_and_baseline(
-            vault, cd, rel, abs_path, card_id, rec, remote_md, tags,
+            cd, rel, abs_path, card_id, rec, remote_md, tags,
             action="updated")
     # Local diverged from baseline.
     if rr == ls:
@@ -404,11 +404,11 @@ def pull_smart(path):
     # Both diverged.
     _backup_local(abs_path, local_md)
     return _write_remote_and_baseline(
-        vault, cd, rel, abs_path, card_id, rec, remote_md, tags,
+        cd, rel, abs_path, card_id, rec, remote_md, tags,
         action="conflict")
 
 
-def _baseline_established(vault, cd, rel, card_id, rec, remote_md, tags):
+def _baseline_established(cd, rel, card_id, rec, remote_md, tags):
     """Write local-state + sidecar without touching the working file."""
     with open(_sidecar_path(cd, card_id), "w", encoding="utf-8") as f:
         f.write(rec["content"])
@@ -434,7 +434,7 @@ def _refresh_synced_at(cd, rel, card_id, rec, tags, action):
                           detail={"tags": tags}), 0
 
 
-def _write_remote_and_baseline(vault, cd, rel, abs_path, card_id, rec,
+def _write_remote_and_baseline(cd, rel, abs_path, card_id, rec,
                                remote_md, tags, action):
     os.makedirs(os.path.dirname(abs_path) or ".", exist_ok=True)
     with open(abs_path, "w", encoding="utf-8") as f:

@@ -1,4 +1,4 @@
-"""hbedit v2 — fuzzy-match guard for tag typos.
+"""hbedit v3 — fuzzy-match guard for tag typos.
 
 Tag merge logic moved into the command implementations as simple
 fetch-modify-push (no 3-way merge in v2). What remains here is the

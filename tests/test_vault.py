@@ -1,4 +1,4 @@
-"""Tests for vault.py: vault discovery, state.json v2, init."""
+"""Tests for vault.py: vault discovery, state.json v3, init."""
 import json
 import os
 import sys

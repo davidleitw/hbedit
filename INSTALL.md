@@ -19,6 +19,8 @@ CLI **不是** 從 npm/brew 裝的，要在桌面 app 內啟用：
 
 詳細步驟參考官方說明：<https://support.heptabase.com/en/articles/14715462-how-to-use-heptabase-cli>
 
+> ⚠️ **Windows 支援目前未驗證。** hbedit 的 CI 只跑 Linux 與 macOS;Windows 步驟是依官方文件寫的、沒有 end-to-end 跑過,可能會撞到路徑分隔符或 shell 行為差異。歡迎 file issue 回報。
+
 確認 CLI 通了：
 
 ```sh

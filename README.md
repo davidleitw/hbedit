@@ -207,6 +207,8 @@ Two things worth knowing:
   supported.
 - **No `hb mv`.** Renaming a tracked `.md` file requires editing
   `state.json` by hand.
+- **Windows is untested.** The implementation should work but only Linux
+  and macOS are exercised in CI. Reports welcome.
 
 ## Where to learn more
 

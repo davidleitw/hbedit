@@ -155,6 +155,15 @@ def test_init_vault_creates_state_with_vaultid_and_no_gitignore():
         assert len(state["vaultId"]) == 36
         # No .gitignore is written by hb init in v3.
         assert not os.path.exists(os.path.join(root, ".gitignore"))
+        # v3: cache directory + sidecar/ must be created eagerly.
+        cache_d = vaultlib.cache_dir(state["vaultId"])
+        assert os.path.isdir(cache_d), \
+            "cache_dir not created by init_vault: %s" % cache_d
+        assert os.path.isdir(os.path.join(cache_d, "sidecar")), \
+            "sidecar/ not created by init_vault under %s" % cache_d
+        # Cleanup so this test doesn't leave global state behind.
+        import shutil
+        shutil.rmtree(cache_d, ignore_errors=True)
 
 
 def test_init_vault_idempotent_in_own_root():

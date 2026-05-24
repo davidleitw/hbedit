@@ -203,6 +203,9 @@ def init_vault(cwd):
       - state.json gets a `vaultId` (UUIDv4) that travels with the repo.
       - .gitignore is NOT written: there are no per-machine files left in
         the project tree.
+      - The per-machine cache directory `~/.hbedit/cache/<vault-id>/sidecar/`
+        is created eagerly so `hb doctor` immediately reports it as existing
+        and the first push / pull does not have to mkdir on demand.
     """
     own = os.path.join(cwd, STATE_DIR)
     if os.path.isdir(own):
@@ -211,9 +214,11 @@ def init_vault(cwd):
     if ancestor is not None:
         raise NestedVaultError("vault already exists at %s" % ancestor)
     os.makedirs(own)
+    vault_id = str(uuid.uuid4())
     save_state(cwd, {
         "schemaVersion": SCHEMA_VERSION,
-        "vaultId": str(uuid.uuid4()),
+        "vaultId": vault_id,
         "files": {},
     })
+    os.makedirs(os.path.join(cache_dir(vault_id), "sidecar"), exist_ok=True)
     return "created"

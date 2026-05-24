@@ -76,9 +76,9 @@ Errors: `cli-missing`, `cli-version-unsupported`, `app-not-running`.
 
 Initialize a vault in the current directory. Creates `.hbedit/state.json`
 with a fresh `vaultId` (UUIDv4) and an empty `files` registry. The
-per-machine cache directory `~/.hbedit/cache/<vault-id>/` is created lazily
-on the first push/pull. No `.gitignore` is written — v3 keeps all
-per-machine state out of the project tree.
+per-machine cache directory `~/.hbedit/cache/<vault-id>/sidecar/` is created
+at init time. No `.gitignore` is written — v3 keeps all per-machine state
+out of the project tree.
 Idempotent — running inside an existing vault emits `action: "already-initialized"`.
 
 ```json

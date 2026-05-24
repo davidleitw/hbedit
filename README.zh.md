@@ -33,8 +33,11 @@ Pull、衝突處理、per-machine cache 在下面的[架構](#架構--怎麼運�
 先備齊:
 
 - Python 3.9+(純 stdlib、不用 pip)
-- 官方 `heptabase` CLI 0.3.x(由 Heptabase 桌面 app 安裝)
-- Heptabase 桌面 app 要開著
+- Heptabase 桌面 app,**v1.91.0 或更新**,而且要開著
+- 官方 `heptabase` CLI 已**在桌面 app 內啟用**:**Settings → AI Features →
+  CLI**(它跟桌面 app 一起裝、**不是** 從 npm 或 brew 來的)。macOS 會自動
+  幫你上 PATH;Windows 會看到 app 印一條 PATH 設定指令,照著跑一次。完整
+  步驟:<https://support.heptabase.com/en/articles/14715462-how-to-use-heptabase-cli>
 
 然後挑你用的 agent:
 

@@ -41,8 +41,12 @@ Pull, conflict handling, and the per-machine cache are covered in
 You need:
 
 - Python 3.9+ (stdlib only — no pip deps)
-- The official `heptabase` CLI 0.3.x (installed by the Heptabase desktop app)
-- The Heptabase desktop app running
+- The Heptabase desktop app, **v1.91.0 or newer**, running
+- The official `heptabase` CLI enabled inside the app at
+  **Settings → AI Features → CLI** (it ships with the desktop app — not
+  npm, not brew). macOS adds it to PATH automatically; Windows users get
+  a one-time PATH-setup command from the app. Full steps:
+  <https://support.heptabase.com/en/articles/14715462-how-to-use-heptabase-cli>
 
 Then pick your agent:
 

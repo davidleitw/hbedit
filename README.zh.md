@@ -202,6 +202,29 @@ claude --plugin-dir /path/to/hbedit
 `--plugin-dir` **只對該 session** 生效 —— 改完 `SKILL.md`、重開 session
 就在測新版,不留任何殘留。
 
+## Changelog
+
+版本依 [SemVer](https://semver.org) 命名,新版在上。
+
+### v0.1.0 — 2026-05-24
+
+首次發布。
+
+- `hb` CLI:`doctor`、`init`、`push`、`pull`(首次綁定 + smart-sync 兩種
+  形式)、`tag add` / `tag remove`、`unlink`
+- Scratch-card block-ID 移植機制 —— 改寫既有卡片中段、保留 block ID 跟
+  指向它的引用
+- Vault 模型:git 追蹤的 `.hbedit/state.json` 記 `path → cardId` 綁定,
+  per-machine `~/.hbedit/cache/<vaultId>/` 記 sync 狀態
+- 多機協作:`state.json` 隨 git 帶走、`hb pull <path>` smart-sync 在新機
+  器自動 baseline(action: `baseline-established` / `noop` / `updated` /
+  `conflict`)
+- 衝突保護:`hb push` 偵測遠端被改過時把本地版備份成 `<path>.conflict.md`、
+  回 `content-conflict`、不悶聲蓋掉
+- Heptabase Agent Skill 適用 Claude Code、Codex CLI、opencode —— 自然
+  語句觸發 + 明確的 escape hatch
+- 純 stdlib Python(3.9+)、無 pip 依賴
+
 ## License
 
 MIT —— 詳見 [`LICENSE`](./LICENSE)。

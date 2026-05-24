@@ -231,6 +231,29 @@ claude --plugin-dir /path/to/hbedit
 restart the session, and you're testing the new version. Nothing to
 clean up afterward.
 
+## Changelog
+
+Versions follow [SemVer](https://semver.org). Newest first.
+
+### v0.1.0 — 2026-05-24
+
+Initial release.
+
+- `hb` CLI: `doctor`, `init`, `push`, `pull` (first-bind and smart-sync
+  forms), `tag add` / `tag remove`, `unlink`.
+- Block-ID transplant via scratch card — rewrite the middle of an existing
+  card while preserving block IDs and any references pointing at them.
+- Vault model: git-tracked `.hbedit/state.json` holds `path → cardId`
+  bindings, per-machine `~/.hbedit/cache/<vaultId>/` holds sync state.
+- Multi-machine workflow via committed `state.json` + smart-sync
+  `hb pull <path>` (baseline / noop / updated / conflict).
+- Conflict guard: `hb push` aborts with `content-conflict` and saves your
+  local copy to `<path>.conflict.md` if the remote changed underneath you.
+- Heptabase Agent Skill for Claude Code, Codex CLI, and opencode —
+  natural-language triggering plus an explicit escape hatch for
+  fire-and-forget cards.
+- Stdlib-only Python (3.9+); zero pip dependencies.
+
 ## License
 
 MIT — see [`LICENSE`](./LICENSE).

@@ -83,8 +83,10 @@ def _now_iso():
         "%Y-%m-%dT%H:%M:%SZ")
 
 
-def _sidecar_path(vault, card_id):
-    d = os.path.join(vault, ".hbedit", "sidecar")
+def _sidecar_path(cache_dir, card_id):
+    """ProseMirror block-ID cache path for `card_id` in this vault's
+    per-machine cache directory."""
+    d = os.path.join(cache_dir, "sidecar")
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, card_id + ".json")
 
@@ -168,7 +170,7 @@ def _push_create(vault, cd, rel_path, body):
     round_trip_md, _ = pm2md.to_markdown(json.loads(rec["content"]))
     with open(abs_path, "w", encoding="utf-8") as f:
         f.write(round_trip_md)
-    with open(_sidecar_path(vault, card_id), "w", encoding="utf-8") as f:
+    with open(_sidecar_path(cd, card_id), "w", encoding="utf-8") as f:
         f.write(rec["content"])
     local_state.set_local_entry(
         cd, rel_path,
@@ -181,7 +183,7 @@ def _push_create(vault, cd, rel_path, body):
 
 def _push_update(vault, cd, rel_path, body, card_id):
     """Update an existing card using block-ID transplant from sidecar."""
-    sidecar = _sidecar_path(vault, card_id)
+    sidecar = _sidecar_path(cd, card_id)
     entry = local_state.get_local_entry(cd, rel_path)
     if entry is None or not os.path.exists(sidecar):
         return errors.emit_error(
@@ -290,12 +292,12 @@ def pull_first_time(card_id, path):
     os.makedirs(os.path.dirname(abs_path) or ".", exist_ok=True)
     with open(abs_path, "w", encoding="utf-8") as f:
         f.write(remote_md)
-    with open(_sidecar_path(vault, card_id), "w", encoding="utf-8") as f:
+    cd = vaultlib.cache_dir(state["vaultId"])
+    with open(_sidecar_path(cd, card_id), "w", encoding="utf-8") as f:
         f.write(rec["content"])
     props = htb.card_properties(card_id)
     tags = sorted({t["tagName"] for t in props.get("tags", [])})
     vaultlib.set_file_entry(vault, rel, card_id, tags)
-    cd = vaultlib.cache_dir(state["vaultId"])
     local_state.set_local_entry(
         cd, rel,
         content_md5=rec["contentMd5"],
@@ -401,7 +403,7 @@ def pull_smart(path):
 
 def _baseline_established(vault, cd, rel, card_id, rec, remote_md, tags):
     """Write local-state + sidecar without touching the working file."""
-    with open(_sidecar_path(vault, card_id), "w", encoding="utf-8") as f:
+    with open(_sidecar_path(cd, card_id), "w", encoding="utf-8") as f:
         f.write(rec["content"])
     local_state.set_local_entry(
         cd, rel,
@@ -430,7 +432,7 @@ def _write_remote_and_baseline(vault, cd, rel, abs_path, card_id, rec,
     os.makedirs(os.path.dirname(abs_path) or ".", exist_ok=True)
     with open(abs_path, "w", encoding="utf-8") as f:
         f.write(remote_md)
-    with open(_sidecar_path(vault, card_id), "w", encoding="utf-8") as f:
+    with open(_sidecar_path(cd, card_id), "w", encoding="utf-8") as f:
         f.write(rec["content"])
     local_state.set_local_entry(
         cd, rel,
@@ -565,7 +567,7 @@ def _handle_conflict(vault, cd, rel_path, local_body, card_id):
     remote_body, _ = pm2md.to_markdown(json.loads(rec["content"]))
     with open(abs_path, "w", encoding="utf-8") as f:
         f.write(remote_body)
-    with open(_sidecar_path(vault, card_id), "w", encoding="utf-8") as f:
+    with open(_sidecar_path(cd, card_id), "w", encoding="utf-8") as f:
         f.write(rec["content"])
     local_state.set_local_entry(
         cd, rel_path,

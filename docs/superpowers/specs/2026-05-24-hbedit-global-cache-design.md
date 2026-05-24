@@ -85,15 +85,16 @@ Each vault's per-machine cache is fully self-contained under its `<vault-id>` di
 {
   "schemaVersion": 3,
   "vaultId": "550e8400-e29b-41d4-a716-446655440000",
-  "cards": {
-    "330c7cd7-552c-49c4-8c07-df5c273b00b2": {
+  "files": {
+    "docs/foo.md": {
+      "cardId": "330c7cd7-552c-49c4-8c07-df5c273b00b2",
       "tags": []
     }
   }
 }
 ```
 
-`cards` shape is unchanged from v2. Only `schemaVersion` bumps (2→3) and `vaultId` is added.
+`files` shape (keyed by path-relative-to-vault, value contains `cardId` + `tags`) is unchanged from v2. Only `schemaVersion` bumps (2→3) and `vaultId` is added.
 
 ## vault-id lifecycle
 
@@ -163,13 +164,11 @@ def _walk_up(start: Path) -> Path:
 
 | Module | Change | LoC |
 |---|---|---|
-| `vault.py` | `find()` returns `VaultInfo`; `init()` writes schemaVersion 3 + vaultId, drops `.gitignore` write; `_walk_up()` checks state.json file | ~30 |
-| `local_state.py` | `local_state_path(vault_info)` uses `vault_info.cache_dir / "local-state.json"` | ~5 |
-| `transplant.py` | sidecar path uses `vault_info.cache_dir / "sidecar" / f"{card_id}.json"` | ~5 |
-| `hbedit.py` | All `vault.find(...)` call sites consume `VaultInfo`, pass it (or its cache_dir) into local_state / transplant | ~15 |
+| `vault.py` | Bump `SCHEMA_VERSION` 2→3; `init_vault()` writes `vaultId` and stops writing `.gitignore`; `find_vault_root()` checks for `state.json` file (not just `.hbedit/` dir); add `cache_dir(vault_id) -> str` helper; add `find(start) -> VaultInfo` returning `(root, state, cache_dir)`; remove `GITIGNORE_LINES` / `_update_gitignore` | ~50 |
+| `local_state.py` | `_path(vault)` → `_path(cache_dir)`; all public functions take `cache_dir` instead of `vault` (`load_local_state(cache_dir)`, `save_local_state(cache_dir, state)`, `get_local_entry(cache_dir, path)`, etc.) | ~15 |
+| `hbedit.py` | `_sidecar_path(vault, card_id)` → `_sidecar_path(cache_dir, card_id)`; call sites switch from `find_vault_root` + `load_state` pair to `find()` returning `VaultInfo`; `doctor()` adds cache-line output (only when invoked inside a vault); all `local_state.*` calls pass `cache_dir` | ~40 |
 | `SKILL.md` | "Vault layout" table updated; `hb init` section mentions vaultId; remove all `.gitignore` references | ~20 |
-| `errors.py` | unchanged | 0 |
-| `htb.py`, `pm2md.py`, `tagsync.py` | unchanged | 0 |
+| `errors.py`, `htb.py`, `pm2md.py`, `tagsync.py`, `transplant.py` | unchanged | 0 |
 
 ### Unchanged behavior (explicitly)
 

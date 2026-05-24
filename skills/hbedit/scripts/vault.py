@@ -71,6 +71,21 @@ def _atomic_write(path, text):
         raise
 
 
+# -- global cache location -------------------------------------------------
+def cache_dir(vault_id):
+    """Return the per-machine cache directory for `vault_id`.
+
+    Layout: ~/.hbedit/cache/<vault-id>/
+    Contains:
+      - local-state.json (per-machine md5 cache)
+      - sidecar/<cardId>.json (per-machine ProseMirror block cache)
+
+    This directory is *not* created here; callers that write into it use
+    os.makedirs(..., exist_ok=True) as needed.
+    """
+    return os.path.join(os.path.expanduser("~"), ".hbedit", "cache", vault_id)
+
+
 # -- load / save -----------------------------------------------------------
 def load_state(vault):
     """Return parsed state.json. Returns the empty-v2 skeleton when the

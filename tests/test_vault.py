@@ -71,6 +71,20 @@ def test_load_state_rejects_corrupt_json():
         raise AssertionError("expected StateCorruptError for malformed JSON")
 
 
+# -- cache_dir --------------------------------------------------------------
+def test_cache_dir_resolves_under_home():
+    expected = os.path.join(os.path.expanduser("~"), ".hbedit", "cache",
+                            "abc-123")
+    assert vaultlib.cache_dir("abc-123") == expected
+
+
+def test_cache_dir_is_string():
+    # Other helpers in vault.py return strings (not Path); cache_dir must
+    # match so callers don't end up mixing Path and str.
+    result = vaultlib.cache_dir("any-id")
+    assert isinstance(result, str)
+
+
 # -- file entry ops ---------------------------------------------------------
 def test_set_get_remove_file_entry():
     with tempfile.TemporaryDirectory() as root:

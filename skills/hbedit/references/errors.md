@@ -8,19 +8,38 @@ field on a non-`ok` status.
 
 What happened: `heptabase` binary not on PATH.
 
+The CLI ships with the Heptabase desktop app (≥ v1.91.0). It is **not**
+distributed via npm, brew, or any package manager — enabling it is a
+desktop-app setting.
+
 Agent steps:
-1. Inform user the Heptabase CLI is not installed.
-2. Direct them to install it (heptabase.com or `npm i -g @heptabase/cli`).
-3. Pause; do not continue until `hb doctor` returns ok.
+1. Inform the user the `heptabase` CLI is not on PATH.
+2. Direct them to the desktop app: **Settings → AI Features → CLI**, then
+   toggle it on. The desktop app must be v1.91.0 or newer; if older, ask
+   them to update the desktop app first.
+3. macOS: the binary lands on PATH automatically — nothing else to do.
+   Windows: the app prints a one-time PATH-setup command; ask the user to
+   run it, then open a fresh shell.
+4. Reference: <https://support.heptabase.com/en/articles/14715462-how-to-use-heptabase-cli>
+5. Pause; do not continue until `hb doctor` returns ok.
 
 ## cli-version-unsupported
 
 What happened: CLI version outside `0.3.x`.
 
+The CLI version tracks the Heptabase desktop app — there is no separate
+CLI package to update. Bringing the CLI to a supported version means
+updating the desktop app.
+
 Agent steps:
-1. Tell user the installed CLI version is unsupported.
-2. Ask them to update (`npm update -g @heptabase/cli` or reinstall).
-3. Pause.
+1. Tell the user the installed `heptabase` CLI is outside the supported
+   `0.3.x` range, and quote the detected version from `doctor`'s `detail`.
+2. Ask them to update the Heptabase **desktop app**. On macOS the bundled
+   CLI updates with the app automatically; on Windows they may need to
+   re-run the PATH-setup step from **Settings → AI Features → CLI** after
+   the app updates.
+3. Reference: <https://support.heptabase.com/en/articles/14715462-how-to-use-heptabase-cli>
+4. Pause.
 
 ## app-not-running
 

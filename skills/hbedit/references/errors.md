@@ -122,9 +122,12 @@ Agent steps:
 What happened: `state.json` has `schemaVersion` other than 3.
 
 Agent steps:
-1. Inform user the state file is from an incompatible older version.
-2. Advise running `hb init` in a fresh directory, or removing `.hbedit/` and starting over. v3 does not migrate v2 state files automatically.
-3. Do not run any other hb command until resolved.
+1. **Stop immediately.** Do not run any hb / shell command that mutates `.hbedit/` — no `rm`, no `hb init`, no rewriting `state.json`. v3 does not migrate v2 state files automatically.
+2. Inform the user: show the affected path and the current `schemaVersion`.
+3. **Present** the recovery options without executing them. List both, with their trade-offs:
+   - Re-run `hb init` after removing `.hbedit/` — **destructive**, loses all tracked bindings; if `files` is non-empty those cards become orphans.
+   - Manually upgrade `state.json` (set `schemaVersion: 3`, add a `vaultId` UUID) — preserves bindings if user understands the v2 → v3 diff.
+4. **Wait for explicit user confirmation** before running any recovery command. Even if `files: {}` looks "safe to wipe", the decision is the user's — they may have audit / migration / archive reasons to keep the old `.hbedit/`. Reasoning your way past this rule is the failure mode this SOP is here to prevent.
 
 ## state-corrupt
 

@@ -17,6 +17,17 @@ hbedit 讓你(或 AI agent)把 Heptabase 上的卡當成普通 markdown 檔來�
 如果你只是要**開一張新卡**或**加一行字**到既有卡片末尾,直接用官方 CLI 就好,
 更簡單,也不用裝 hbedit。
 
+## hbedit 實際做了什麼
+
+Heptabase 卡片內容**內部**是 ProseMirror JSON 格式。官方 CLI 提供 `create`、
+`append`、`read` —— 但沒有「拿改好的 markdown 換掉既有卡片內容」這個動作。
+hbedit 補的就是這個缺口。Push 的時候,它把你改好的 markdown 丟給 Heptabase
+建一張 scratch 卡,讓 Heptabase 自己產生對應的 ProseMirror JSON,把原卡的
+block ID 蓋到那份 JSON 對應的 block 上,存回真正那張卡,再把 scratch 卡
+trash 掉。原卡 ID 保留下來,指向它 block 的引用也都不會斷。
+
+Pull、衝突處理、per-machine cache 在下面的[架構](#架構--怎麼運作的)章節展開。
+
 ## 怎麼裝
 
 先備齊:

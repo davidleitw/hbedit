@@ -21,6 +21,21 @@ exists.
 If all you want is to **make a new card** or **add one line at the bottom**,
 just use the official CLI directly — it's simpler.
 
+## What hbedit actually does
+
+Heptabase stores card content internally as ProseMirror JSON. The official
+CLI exposes `create`, `append`, and `read` — but it doesn't take edited
+markdown and apply it as a content rewrite to an existing card. hbedit
+fills that gap. On push, it hands your edited markdown to Heptabase as a
+new "scratch" card, lets Heptabase's own engine produce the matching
+ProseMirror JSON, copies the original card's block IDs onto the
+corresponding blocks in that JSON, saves the result back onto the real
+card, and trashes the scratch card. The card keeps its ID, and any
+reference pointing into its blocks stays valid.
+
+Pull, conflict handling, and the per-machine cache are covered in
+[Architecture](#architecture--how-it-works) below.
+
 ## Install
 
 You need:

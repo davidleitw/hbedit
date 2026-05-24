@@ -45,13 +45,13 @@ claude --plugin-dir /Users/leiweicheng/Desktop/HeptaSync
 |---|---|---|---|---|
 | TC-1 | 第一次設定 vault | AC #1(回歸) | P0 | ✅ pass |
 | TC-3 | 拉既有卡片到本地 | pull 流程(回歸) | P0 | ✅ pass |
-| TC-7 | 在 vault 外 push 檔案 | AC #4 v3 bug fix(回歸) | P0 | 未跑 |
-| TC-9 | 從深層子目錄發指令 | vault discovery(回歸) | P1 | 未跑 |
-| TC-10 | 帶 v2 schema 的 vault | AC #5(回歸) | P1 | 未跑 |
-| TC-trigger-A | 改既有卡中段 | edit-existing 正面觸發 | P0 | 未跑 |
-| TC-trigger-B | 多機 clone 後接續編輯 | multi-machine 正面觸發 | P0 | 未跑 |
-| TC-trigger-C | vault 內推 markdown 帶維護訊號 | new default+escape 設計驗證 | P0 | 未跑 |
-| TC-trigger-D | 一次性建卡 + 明確 fire-and-forget | escape hatch 啟動 / 負面觸發 | P0 | 未跑 |
+| TC-7 | 在 vault 外 push 檔案 | AC #4 v3 bug fix(回歸) | P0 | ⚠️ partial |
+| TC-9 | 從深層子目錄發指令 | vault discovery(回歸) | P1 | ✅ pass |
+| TC-10 | 帶 v2 schema 的 vault | AC #5(回歸) | P1 | ✅ pass |
+| TC-trigger-A | 改既有卡中段 | edit-existing 正面觸發 | P0 | ✅ pass |
+| TC-trigger-B | 多機 clone 後接續編輯 | multi-machine 正面觸發 | P0 | ✅ pass |
+| TC-trigger-C | vault 內推 markdown 帶維護訊號 | new default+escape 設計驗證 | P0 | ✅ pass |
+| TC-trigger-D | 一次性建卡 + 明確 fire-and-forget | escape hatch 啟動 / 負面觸發 | P0 | ✅ pass |
 
 **Status 值**:`未跑` / `✅ pass` / `❌ fail (見備註)` / `⚠️ partial`
 
@@ -266,7 +266,23 @@ rm -rf /tmp/random-notes
 
 ### Status
 
-未跑
+⚠️ partial (2026-05-24)
+
+**v3 fix 本身:✅ pass**(shell 直接驗證)
+- 直接跑 `python3 hbedit.py push foo.md` from `/tmp/random-notes` →
+  `{"code":"not-in-vault","detail":"foo.md is not inside an hbedit vault. Run `hb init` in the project root."}`
+- 不是 `state-corrupt`,v2 vault-walk-up bug 沒回歸 ✅
+
+**Agent 觸發路徑:走 base CLI(fire-and-forget),沒走到 hb push**
+- 載入 `hbedit:hbedit` skill ✅
+- 跑 `hb doctor` ✅
+- **但**用 `ls -la .hbedit` 預檢測 vault → 發現不存在 → 跳過 `hb push` → 直接 `heptabase note create`(走 base CLI fire-and-forget)
+- 第一次 `--title` flag 失敗,第二次 `--content-file` 成功,建立 orphan card `ac2c0a18-5651-4921-a924-3fea4f46b046`
+- Agent 主動詢問是否要 tracked,提供改 hbedit 的路徑(行為合理)
+
+**評估**:這對齊新 SKILL.md 「not in vault → base CLI fire-and-forget」default — prompt「foo.md 推到 Heptabase 變一張卡」沒有維護訊號,fire-and-forget 是預期行為。但 TC-7 原本「agent 透過 hb push 撞 not-in-vault SOP」的觸發路徑在新 SKILL.md 下不再走得到。v3 fix 仍需以 shell 直接驗證(已通過)。
+
+**Cleanup**:trash orphan card `ac2c0a18-5651-4921-a924-3fea4f46b046`
 
 ---
 
@@ -338,7 +354,14 @@ rm -rf /tmp/hb-tc9
 
 ### Status
 
-未跑
+✅ pass (2026-05-24)
+
+- Agent 載入 `hbedit:hbedit` skill,跑 `hb doctor`(SOP B 前置)
+- Agent 透過 `ls -la .hbedit` + `cd /private/tmp/hb-tc9 && ls -la .hbedit` 主動偵測 vault root(用 abs path 給 `hb push`)
+- `hb push /private/tmp/hb-tc9/src/components/deep/note.md` 從深層 cwd 成功 walk up 到 vault root
+- 建立 card `ba8255ca-5cb2-40a5-9aff-c0695d69d531`、`action:"created"`
+- **關鍵驗證**:`state.json["files"]` key 是 vault-relative `src/components/deep/note.md`(**不是**絕對路徑也不是 cwd-relative `note.md`)
+- v3 vault discovery 正確處理深層子目錄
 
 ---
 
@@ -405,7 +428,24 @@ rm -rf /tmp/hb-tc10
 
 ### Status
 
-未跑
+✅ pass (2026-05-24,重跑於 errors.md 措辭加重後)
+
+**初次跑:⚠️ partial** — v3 implementation 正確,但 agent 自主執行 `rm -rf .hbedit && hb init && hb push` 一氣呵成,沒等使用者確認。建立 orphan-ish card `7efdfdf8-68cf-40de-bd63-09de0f936bd3`(已清理)。詳見 Bug 2。
+
+**修補措施**:`skills/hbedit/references/errors.md` 的 `state-schema-unsupported` SOP 改寫,加重措辭:
+1. **Stop immediately** + 明禁任何 mutate `.hbedit/` 的指令(`rm`、`hb init`、rewrite state.json)
+2. Present recovery 選項 + trade-offs,**不執行**
+3. Wait for explicit user confirmation
+4. 「Reasoning your way past this rule is the failure mode this SOP is here to prevent」
+
+**重跑驗證(2026-05-24 22:55)**:
+- Agent 撞到 error 後 **停下來** ✅
+- 列出兩個 options:(1) rm + init 砍掉重練(警告 vaultId 換新)(2) 手動升級 `schemaVersion 2 → 3`(保留 vaultId,less destructive)
+- 推薦 option 2 + 詢問「要嗎?」等使用者確認 ✅
+- 對使用者沒回覆前,**沒**碰 `.hbedit/`、state.json 維持 `schemaVersion: 2`、cache 沒新東西 ✅
+- 完全符合新 SOP 的「Stop + Present + Wait」三步
+
+**Cleanup**:trash 初次跑遺留 card `7efdfdf8-68cf-40de-bd63-09de0f936bd3`(已 reset)
 
 ---
 
@@ -488,7 +528,15 @@ rm -rf /tmp/hb-tcA
 
 ### Status
 
-未跑
+✅ pass (2026-05-24)
+
+- Agent 載入 `hbedit:hbedit` skill(強訊號:「改」+「同步回去」+ cardId + vault 內)
+- 跑 `hb doctor`,`ls .hbedit/state.json` + `cat` 確認綁定
+- **Bonus**:跑 `hb pull notes/react-hooks.md`(SOP A 起手保守同步,雖然本地剛 push 過、技術上不必,但對齊「先 pull 再 edit」良好習慣)
+- Edit tool 改 typo 兩處:H2 標題 `## useEffec` → `## useEffect`,內文 `useEffec 用來...` → `useEffect 用來...`
+- `hb push notes/react-hooks.md` 成功
+- **驗證**:本地 + remote 都 `useEffect`,零 `useEffec`,其他 block(useState/useMemo)未動
+- edit-existing 主用例強訊號正面觸發 ✅
 
 ---
 
@@ -580,7 +628,18 @@ rm -rf /tmp/machine_a /tmp/machine_b
 
 ### Status
 
-未跑
+✅ pass (2026-05-24)
+
+- Agent 載入 `hbedit:hbedit`(強訊號:「git clone」+「接著編輯」)
+- 跑 `hb doctor && hb pull docs/mm.md`(single-arg smart-sync 形式)
+- 回報「Baseline established for docs/mm.md (card ddbc4678…)」— `action:"baseline-established"`,**不是** `conflict` ✅
+- Agent 沒有自顧自動筆,改成詢問「要加什麼新段落?」— 對齊「先 pull 對齊 baseline → 再 edit」的順序,行為合理
+- **檔案系統驗證**:
+  - `~/.hbedit/cache/<vaultId>/local-state.json` 建出來,含 contentMd5/localMd5/syncedAt
+  - `~/.hbedit/cache/<vaultId>/sidecar/<cardId>.json` 寫入
+  - `diff machine_a/docs/mm.md machine_b/docs/mm.md` 完全一致
+  - 沒有 `.conflict.md`(沒誤判 conflict)
+- multi-machine smart-sync 正面觸發 ✅
 
 ---
 
@@ -661,7 +720,15 @@ rm -rf /tmp/hb-tcC
 
 ### Status
 
-未跑
+✅ pass (2026-05-24) — **redesign acid test 通過**
+
+- Agent 載入 `hbedit:hbedit` skill(中強訊號:「vault」+「之後會繼續改」命中新 SKILL.md description)
+- 跑 `hb doctor && ls notes/rust-ownership.md`(SOP B 前置)
+- **直接走 `hb push notes/rust-ownership.md`**,**不是** `heptabase note create` ✅
+- 建立 card `503761cd-f973-4a65-be63-a6eab2b244c2`、`action:"created"`
+- `state.json["files"]["notes/rust-ownership.md"]` 有 tracked entry(**不是 orphan**)
+- `~/.hbedit/cache/<vaultId>/local-state.json` + `sidecar/<cardId>.json` 都建出來
+- **意義**:這驗證新 SKILL.md「in vault → `hb push` (tracked)」default 確實命中 — Bug 1(舊 TC-2 走 base CLI 建 orphan)已被 `02cf678` redesign 解決
 
 ---
 
@@ -728,7 +795,16 @@ rm -rf /tmp/hb-tcD
 
 ### Status
 
-未跑
+✅ pass (2026-05-24) — **escape hatch acid test 通過**
+
+- Agent **沒**載入 `hbedit:hbedit` skill — 三重 escape hatch 訊號(「隨手」+「不用追蹤」+「丟上去就好」)成功擋住「in vault」環境訊號
+- 第一輪 agent 沒貿然編造會議內容,反問使用者要寫什麼(行為保守、合理)
+- 第二輪拿到內容後,直接走 `heptabase note create`(base CLI),**不是** `hb push`
+- 第一次 `--title` flag 失敗,agent 跑 `--help` 自我修正後用 `-c` 旗標重試成功(已知 CLI quirk,可接受)
+- 建立 card `76ed31a4-241f-492f-b05e-d0627512f6f7`
+- **驗證**:`state.json["files"] == {}` ✅,vault cache dir 只有 init 時的空骨架,無 hbedit 副作用
+- **意義**:Escape hatch 設計成立 — 明確的「不用追蹤 / 隨手 / 丟上去就好」訊號比 cwd 環境訊號更強。SKILL.md description 沒有 over-aggressive。
+- **Cleanup**:trash card `76ed31a4-241f-492f-b05e-d0627512f6f7`
 
 ---
 
@@ -747,7 +823,25 @@ rm -rf /tmp/hb-tcD
 - **影響**:任何使用者「新增筆記到 vault」的自然 prompt 都可能走錯路;orphan 卡片散落 Heptabase,使用者後續想透過 hbedit 維護時要手動 `hb pull <cardId> <path>` 重綁。
 - **修補方向**:在 SKILL.md description / SOP B 加一條「cwd 含 `.hbedit/state.json` → 任何 markdown→card 操作預設走 hbedit;base CLI 只在沒 vault 或使用者明確要求一次性建立時用」。TC-trigger-C 加了明確維護訊號驗證修補後的新行為。
 - **修補 commit**:`02cf678` docs(hbedit)!: rewrite SKILL.md as narrow trigger + default/escape — 新 SKILL.md「Default behavior」表第一列就是「In vault → `hb push`(tracked)」,搭配 escape hatch + `hb unlink` 救回機制。配套 commit:`9314be0` `hb unlink` + `6592509` argparse refactor 讓 `hb <cmd> --help` 全可用。
-- **重測狀態**:待 TC-trigger-C 跑過確認新 SKILL.md 修補成功
+- **重測狀態**:✅ 已驗證修補成功(2026-05-24,TC-trigger-C pass)— 在 vault 內帶維護訊號的 prompt 「我這個 vault 多了一個 notes/rust-ownership.md,推到 Heptabase,之後我會繼續從本地改」成功觸發 hbedit + 走 `hb push`,state.json 有 tracked entry、不是 orphan。配套 TC-trigger-D 也驗證 escape hatch 沒被 description 蓋住(明確 fire-and-forget 語句仍走 base CLI、state.json 維持空)。
+
+### Bug 2:Agent 自主執行 destructive recovery、違反 `state-schema-unsupported` SOP
+
+- **發現於**:TC-10(2026-05-24)
+- **症狀**:`hb push foo.md` on v2-schema vault 正確回 `{"code":"state-schema-unsupported","detail":"state.json schemaVersion is 2, expected 3"}` 之後,agent 自主執行 `rm -rf .hbedit && hb init && hb push foo.md` 一氣呵成,沒先問使用者授權。agent 的 reasoning「`files: {}` → 安全」合理,但動作本身 destructive(刪 `.hbedit/`)。
+- **根因**:`skills/hbedit/references/errors.md` 的 `state-schema-unsupported` SOP 寫:
+  > 1. Inform user
+  > 2. Advise running `hb init` in a fresh directory, or removing `.hbedit/`
+  > 3. Do not run any other hb command until resolved.
+  agent 把「advise」當成「自己做」、把「until resolved」當成「我來 resolve」。SOP 措辭沒明禁 destructive 自動執行,讓 agent 的 reasoning 鑽過去了。
+- **影響**:目前的 case `files: {}` 沒實際損失,但若 v2 state 有 tracked entries,這個 pattern 會毀掉所有綁定 metadata、卡片變 orphan。可預期使用者升級老 vault 時會踩到。
+- **修補方向(待討論)**:
+  - 選項 A:`references/errors.md` 加重措辭 — 「**Never** run any hb / shell command that mutates `.hbedit/` without explicit user confirmation. Always present the suggested action and wait.」
+  - 選項 B:CLI 端加 destructive gate — `hb init` 偵測 `.hbedit/state.json` 已存在時 refuse(除非 `--force`),逼 agent 主動觸碰 `--force` = 強訊號要求授權。
+  - 選項 C:接受目前行為(reasoning sound、case 無損失),但在 SKILL.md 加 destructive recovery 的注意事項。
+- **修補方向(已採用)**:選項 A — errors.md 措辭加重。改動範圍小、效果明顯,優先嘗試。若未來再撞到類似 destructive auto-recovery 模式,再考慮選項 B(CLI gate)。
+- **修補 commit**:_(本次 redesign 測試流程內,直接在 `skills/hbedit/references/errors.md` 改 `state-schema-unsupported` SOP — 待 commit)_
+- **重測狀態**:✅ 已驗證修補成功(2026-05-24,TC-10 重跑) — agent 撞到 error 後停下、列選項、等使用者確認;state.json 維持 v2、`.hbedit/` 沒被動、cache 沒新東西。
 
 ## 設計筆記
 

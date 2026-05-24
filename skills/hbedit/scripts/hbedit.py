@@ -542,6 +542,43 @@ def _tag_op(path, name, action):
                           detail={"tags": new_tags}), 0
 
 
+def unlink(path):
+    """Implement `hb unlink <path>` — remove binding without touching
+    the local .md file or the remote Heptabase card. Cleans state.json,
+    local-state.json, and sidecar/<cardId>.json."""
+    try:
+        info = vaultlib.find(path) or vaultlib.find(os.getcwd())
+    except vaultlib.StateSchemaError as exc:
+        return errors.emit_error("unlink", errors.STATE_SCHEMA_UNSUPPORTED,
+                                 detail=str(exc)), 2
+    except vaultlib.StateCorruptError as exc:
+        return errors.emit_error("unlink", errors.STATE_CORRUPT,
+                                 detail=str(exc)), 2
+    if info is None:
+        return errors.emit_error(
+            "unlink", errors.NOT_IN_VAULT, path=path,
+            detail="no .hbedit/ found at or above %s" % path), 2
+    vault, state, cd = info.root, info.state, info.cache_dir
+    rel = _resolve_vault_relative(vault, path)
+
+    entry = state["files"].get(rel)
+    if entry is None:
+        return errors.emit_error(
+            "unlink", errors.PATH_NOT_TRACKED, path=rel,
+            detail="%s is not tracked; nothing to unlink." % rel), 2
+    card_id = entry["cardId"]
+
+    # Remove the three persistent bits. Local md and remote card untouched.
+    vaultlib.remove_file_entry(vault, rel)
+    local_state.remove_local_entry(cd, rel)
+    sidecar = _sidecar_path(cd, card_id)
+    if os.path.exists(sidecar):
+        os.unlink(sidecar)
+
+    return errors.emit_ok("unlink", action="unlinked",
+                          cardId=card_id, path=rel), 0
+
+
 def _backup_local(abs_path, body):
     """Write `body` to <abs_path>.conflict.md, disambiguating with a
     numeric suffix if a backup already exists."""

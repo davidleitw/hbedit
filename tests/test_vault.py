@@ -14,12 +14,17 @@ import vault as vaultlib
 def test_find_vault_root_finds_self():
     with tempfile.TemporaryDirectory() as root:
         os.makedirs(os.path.join(root, ".hbedit"))
+        # state.json must exist for find_vault_root to recognize the dir.
+        with open(os.path.join(root, ".hbedit", "state.json"), "w") as f:
+            f.write('{"schemaVersion": 2, "files": {}}')
         assert vaultlib.find_vault_root(root) == root
 
 
 def test_find_vault_root_walks_up():
     with tempfile.TemporaryDirectory() as root:
         os.makedirs(os.path.join(root, ".hbedit"))
+        with open(os.path.join(root, ".hbedit", "state.json"), "w") as f:
+            f.write('{"schemaVersion": 2, "files": {}}')
         sub = os.path.join(root, "a", "b", "c")
         os.makedirs(sub)
         assert vaultlib.find_vault_root(sub) == root
@@ -141,6 +146,8 @@ def test_init_vault_idempotent_in_own_root():
 def test_init_vault_refuses_inside_existing_vault():
     with tempfile.TemporaryDirectory() as root:
         os.makedirs(os.path.join(root, ".hbedit"))  # the parent vault
+        with open(os.path.join(root, ".hbedit", "state.json"), "w") as f:
+            f.write('{"schemaVersion": 2, "files": {}}')
         sub = os.path.join(root, "sub")
         os.makedirs(sub)
         try:
@@ -209,3 +216,19 @@ def test_find_walks_up_like_find_vault_root():
         info = vaultlib.find(sub)
         assert info.root == root
         assert info.state["vaultId"] == "v-uuid-2"
+
+
+def test_find_vault_root_ignores_empty_dotdir():
+    """A .hbedit/ directory without state.json must not count as a vault.
+
+    This is the latent bug exposed by the v3 global-cache layout
+    (~/.hbedit/cache/...): any file under $HOME walking up would
+    otherwise false-positive at $HOME.
+    """
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, ".hbedit"))  # no state.json inside
+        sub = os.path.join(root, "a")
+        os.makedirs(sub)
+        # Walk-up from sub finds the empty .hbedit/ at root in v2 (bug),
+        # must return None after the fix.
+        assert vaultlib.find_vault_root(sub) is None

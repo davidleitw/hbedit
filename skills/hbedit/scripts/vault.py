@@ -45,13 +45,19 @@ class DuplicateCardIdError(Exception):
 
 # -- vault discovery -------------------------------------------------------
 def find_vault_root(start):
-    """Walk up from `start` (a file or dir) to the dir holding `.hbedit/`.
-    Returns the vault root path, or None if no vault encloses `start`."""
+    """Walk up from `start` (a file or dir) to the dir holding
+    `.hbedit/state.json`. Returns the vault root path, or None if no
+    vault encloses `start`.
+
+    Checks for the state.json *file*, not just the .hbedit directory —
+    an empty .hbedit/ anywhere (notably ~/.hbedit/cache/...) must not
+    fool discovery.
+    """
     d = os.path.abspath(start)
     if os.path.isfile(d):
         d = os.path.dirname(d)
     while True:
-        if os.path.isdir(os.path.join(d, STATE_DIR)):
+        if os.path.isfile(os.path.join(d, STATE_DIR, STATE_FILE)):
             return d
         parent = os.path.dirname(d)
         if parent == d:

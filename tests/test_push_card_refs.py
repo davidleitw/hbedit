@@ -147,5 +147,87 @@ class TestPushUpdateNoPlaceholder(unittest.TestCase):
             self.assertNotIn('"type":"card"', saved_payloads[0])
 
 
+class TestPushUpdateWithPlaceholder(unittest.TestCase):
+    """_push_update: when scratch PM contains [[card:UUID]] text, the
+    final note_save payload must contain a card node, not text."""
+
+    def test_placeholder_in_scratch_becomes_card_in_save(self):
+        with tempfile.TemporaryDirectory() as root:
+            vaultlib.init_vault(root)
+            rel = "a.md"
+            abs_path = os.path.join(root, rel)
+            with open(abs_path, "w") as f:
+                f.write(f"# t\n\n[[card:{_UUID_A}]]")
+
+            from vault import find as vault_find
+            info = vault_find(abs_path)
+            vault, cd = info.root, info.cache_dir
+            card_id = _UUID_B
+
+            vaultlib.set_file_entry(vault, rel, card_id, [])
+            sidecar_dir = os.path.join(cd, "sidecar")
+            os.makedirs(sidecar_dir, exist_ok=True)
+            old_doc = {"type": "doc", "content": [
+                {"type": "heading",
+                 "attrs": {"id": "h-old", "level": 1},
+                 "content": [{"type": "text", "text": "t"}]},
+                {"type": "paragraph",
+                 "attrs": {"id": "p-old"},
+                 "content": [{"type": "card",
+                              "attrs": {"cardId": _UUID_A}}]}]}
+            with open(os.path.join(sidecar_dir, card_id + ".json"), "w") as f:
+                json.dump(old_doc, f)
+            local_state.set_local_entry(cd, rel,
+                                        content_md5="lock-md5",
+                                        local_md5="local-md5",
+                                        synced_at="2026-05-25T00:00:00Z")
+
+            saved_payloads = []
+            scratch_pm = _scratch_pm_with_placeholder_text()
+            final_pm = copy.deepcopy(scratch_pm)
+            # final remote PM after our save would contain card node;
+            # we just need ANY valid JSON for the post-save read.
+            final_pm["content"][1]["content"] = [
+                {"type": "card", "attrs": {"cardId": _UUID_A}}]
+
+            def fake_save(card_id_arg, content, content_md5):
+                saved_payloads.append(content)
+                return {"id": card_id_arg, "title": "t",
+                        "contentMd5": "new-md5"}
+
+            with mock.patch.object(hbedit.htb, "note_create",
+                                   return_value={"id": "scratch-id",
+                                                 "title": "t"}), \
+                 mock.patch.object(hbedit.htb, "note_read",
+                                   side_effect=[
+                                       {"id": "scratch-id", "title": "t",
+                                        "content": json.dumps(scratch_pm),
+                                        "contentMd5": "s"},
+                                       {"id": card_id, "title": "t",
+                                        "content": json.dumps(final_pm),
+                                        "contentMd5": "new-md5"}
+                                   ]), \
+                 mock.patch.object(hbedit.htb, "note_save",
+                                   side_effect=fake_save), \
+                 mock.patch.object(hbedit.htb, "card_trash"):
+                hbedit._push_update(vault, cd, rel,
+                                    f"# t\n\n[[card:{_UUID_A}]]", card_id)
+
+            self.assertEqual(len(saved_payloads), 1)
+            payload = json.loads(saved_payloads[0])
+            # Find the card node in the saved payload
+            self.assertEqual(payload["content"][1]["content"][0]["type"], "card")
+            # Paragraph wrapping the card has its id preserved by transplant
+            # (since old paragraph had block_text "" and substituted-new
+            # paragraph also has block_text "" — signatures match)
+            wrapping_para = payload["content"][1]
+            self.assertEqual(wrapping_para["type"], "paragraph")
+            self.assertEqual(wrapping_para["content"][0],
+                             {"type": "card",
+                              "attrs": {"cardId": _UUID_A}})
+            # The transplanted id should match the old paragraph id
+            self.assertEqual(wrapping_para["attrs"]["id"], "p-old")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -329,6 +329,63 @@ class TestSubstituteDatePlaceholders(unittest.TestCase):
             out["content"][0]["content"],
             [_txt("head "), _date_node(_DATE_A)])
 
+    def test_multiple_placeholders_in_one_text(self):
+        doc = _doc(_para_with(_txt(
+            f"start [[date:{_DATE_A}]] mid [[date:{_DATE_B}]] end")))
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("start "), _date_node(_DATE_A),
+             _txt(" mid "), _date_node(_DATE_B),
+             _txt(" end")])
+
+    def test_adjacent_placeholders_no_space(self):
+        doc = _doc(_para_with(_txt(
+            f"[[date:{_DATE_A}]][[date:{_DATE_B}]]")))
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_date_node(_DATE_A), _date_node(_DATE_B)])
+
+    def test_no_placeholder_returns_equivalent_doc(self):
+        doc = _doc(_para_with(_txt("plain text, no dates")))
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(out, doc)
+        self.assertIsNot(out, doc)
+
+    def test_non_strict_format_kept_as_text(self):
+        # Non-padded month, slash separator, year-only — none match
+        # the strict regex.
+        for raw in ("2026-5-26", "2026/05/26", "2026"):
+            with self.subTest(raw=raw):
+                doc = _doc(_para_with(_txt(f"[[date:{raw}]]")))
+                out = pm2md.substitute_date_placeholders(doc)
+                self.assertEqual(
+                    out["content"][0]["content"],
+                    [_txt(f"[[date:{raw}]]")])
+
+    def test_unclosed_placeholder_kept_as_text(self):
+        doc = _doc(_para_with(_txt(f"[[date:{_DATE_A}")))
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt(f"[[date:{_DATE_A}")])
+
+    def test_calendar_invalid_kept_as_text(self):
+        # 2026-13-99: regex shape passes; calendar rejects.
+        doc = _doc(_para_with(_txt("[[date:2026-13-99]]")))
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("[[date:2026-13-99]]")])
+
+    def test_calendar_invalid_feb_30_kept_as_text(self):
+        doc = _doc(_para_with(_txt("[[date:2026-02-30]]")))
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("[[date:2026-02-30]]")])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -45,7 +45,7 @@ heptabase --version
 ## Codex CLI（一行）
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/main/install.sh | sh -s codex
+curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/master/install.sh | sh -s codex
 ```
 
 會把 skill 裝到 `~/.agents/skills/hbedit/`，把 `hb` symlink 到 `~/.local/bin/hb`。確認 `~/.local/bin` 在你的 PATH 上。
@@ -53,7 +53,7 @@ curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/main/install.sh |
 ## opencode（一行）
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/main/install.sh | sh -s opencode
+curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/master/install.sh | sh -s opencode
 ```
 
 skill 落在 `~/.config/opencode/skills/hbedit/`，其餘同上。
@@ -99,7 +99,7 @@ ln -snf ~/.local/share/hbedit/bin/hb ~/.local/bin/hb
 下載先檢查再執行：
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/main/install.sh -o /tmp/hbedit-install.sh
+curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/master/install.sh -o /tmp/hbedit-install.sh
 less /tmp/hbedit-install.sh
 sh /tmp/hbedit-install.sh codex   # 或 opencode
 ```

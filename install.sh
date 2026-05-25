@@ -1,6 +1,6 @@
 #!/bin/sh
 # hbedit installer for Codex CLI and opencode.
-# Usage:  curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/main/install.sh | sh -s <tool>
+# Usage:  curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/master/install.sh | sh -s <tool>
 #         where <tool> is one of:  codex  |  opencode
 #
 # Claude Code users do NOT need this script — install via /plugin marketplace
@@ -44,8 +44,10 @@ say() { printf '  %s\n' "$*"; }
 echo "hbedit installer (tool: $TOOL)"
 
 # 1. clone or refresh the repo
-#    Note: refresh discards local edits inside $INSTALL_ROOT. That directory is
-#    machine-managed — don't put anything you want to keep in there.
+#    Note: refresh runs `git reset --hard` against the remote's default branch,
+#    which discards modifications to tracked files. Untracked files are left
+#    alone — but don't rely on that; this directory is machine-managed and
+#    nothing you want to keep belongs here.
 if [ -d "$INSTALL_ROOT/.git" ]; then
   say "refresh: $INSTALL_ROOT"
   git -C "$INSTALL_ROOT" fetch --quiet origin

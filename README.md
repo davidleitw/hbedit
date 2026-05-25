@@ -58,12 +58,12 @@ Then pick your agent:
 
 **Codex CLI** (one line):
 ```sh
-curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/main/install.sh | sh -s codex
+curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/master/install.sh | sh -s codex
 ```
 
 **opencode** (one line):
 ```sh
-curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/main/install.sh | sh -s opencode
+curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/master/install.sh | sh -s opencode
 ```
 
 Verify in a new shell:
@@ -279,6 +279,17 @@ clean up afterward.
 ## Changelog
 
 Versions follow [SemVer](https://semver.org). Newest first.
+
+### v0.1.3 — 2026-05-26
+
+- **fix**: the `curl | sh` one-liner in README / README.zh / INSTALL.md
+  pointed at the non-existent `main` branch. This repo's default branch
+  is `master`, so anyone who copy-pasted the documented one-liner got a
+  404 and an empty install. `install.sh -h` help text fixed as well.
+- **docs**: `install.sh`'s refresh-behavior comment was inaccurate — it
+  claimed to "discard local edits", but `git reset --hard` only touches
+  tracked files; untracked files survive. Comment now reflects real
+  behavior. (No code change.)
 
 ### v0.1.2 — 2026-05-25
 

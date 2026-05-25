@@ -49,12 +49,12 @@ Pull、衝突處理、per-machine cache 在下面的[架構](#架構--怎麼運�
 
 **Codex CLI**(一行):
 ```sh
-curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/main/install.sh | sh -s codex
+curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/master/install.sh | sh -s codex
 ```
 
 **opencode**(一行):
 ```sh
-curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/main/install.sh | sh -s opencode
+curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/master/install.sh | sh -s opencode
 ```
 
 裝完開個新 shell:
@@ -245,6 +245,15 @@ claude --plugin-dir /path/to/hbedit
 ## Changelog
 
 版本依 [SemVer](https://semver.org) 命名,新版在上。
+
+### v0.1.3 — 2026-05-26
+
+- **fix**:README / README.zh / INSTALL.md 裡的 `curl | sh` 一鍵指令
+  指向不存在的 `main` 分支。這個 repo 預設分支是 `master`,任何照文件
+  抄 one-liner 的人都會撞 404、裝不起來。`install.sh -h` help 也跟著修。
+- **docs**:`install.sh` refresh 行為的註解之前不誠實 — 寫「discards
+  local edits」,但 `git reset --hard` 只清 tracked files,untracked
+  會留著。註解改成真實行為描述。(沒改 code。)
 
 ### v0.1.2 — 2026-05-25
 

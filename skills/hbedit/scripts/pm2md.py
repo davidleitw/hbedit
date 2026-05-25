@@ -208,10 +208,10 @@ _CARD_PLACEHOLDER_RE = _re_module.compile(
 def substitute_card_placeholders(doc):
     """Return a new ProseMirror doc with `[[card:<uuid>]]` text occurrences
     replaced by `card` nodes. The input is not mutated."""
-    return _walk_substitute(_copy_module.deepcopy(doc))
+    return _walk_substitute(_copy_module.deepcopy(doc), _split_text_on_card)
 
 
-def _walk_substitute(node):
+def _walk_substitute(node, splitter):
     if not isinstance(node, dict):
         return node
     # Do not descend into code_block subtrees.
@@ -223,14 +223,14 @@ def _walk_substitute(node):
     new_children = []
     for child in children:
         if isinstance(child, dict) and child.get("type") == "text":
-            new_children.extend(_split_text_on_placeholder(child))
+            new_children.extend(splitter(child))
         else:
-            new_children.append(_walk_substitute(child))
+            new_children.append(_walk_substitute(child, splitter))
     node["content"] = new_children
     return node
 
 
-def _split_text_on_placeholder(text_node):
+def _split_text_on_card(text_node):
     # Text with `code` mark is treated as opaque — never substitute.
     for mark in text_node.get("marks") or []:
         if mark.get("type") == "code":

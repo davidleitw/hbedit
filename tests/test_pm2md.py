@@ -58,6 +58,10 @@ def _card_node(card_id):
     return {"type": "card", "attrs": {"cardId": card_id}}
 
 
+def _date_node(date_str):
+    return {"type": "date", "attrs": {"date": date_str}}
+
+
 class TestSubstituteCardPlaceholders(unittest.TestCase):
     """Substitution of `[[card:UUID]]` text into ProseMirror `card` nodes.
 
@@ -286,6 +290,44 @@ class TestToMarkdownDate(unittest.TestCase):
         md, conv = pm2md.to_markdown(doc)
         self.assertEqual(md, "<!-- UNCONVERTED inline date -->")
         self.assertIn("date", conv.unknown_nodes)
+
+
+_DATE_A = "2026-05-26"
+_DATE_B = "2026-12-25"
+
+
+class TestSubstituteDatePlaceholders(unittest.TestCase):
+    """Substitution of `[[date:YYYY-MM-DD]]` text into ProseMirror
+    `date` nodes. Pure function — assert structure exactly; never
+    mutate input."""
+
+    def test_pure_placeholder_becomes_date(self):
+        doc = _doc(_para_with(_txt(f"[[date:{_DATE_A}]]")))
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_date_node(_DATE_A)])
+
+    def test_prefix_placeholder_suffix_split(self):
+        doc = _doc(_para_with(_txt(f"today [[date:{_DATE_A}]] ok")))
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("today "), _date_node(_DATE_A), _txt(" ok")])
+
+    def test_placeholder_at_start(self):
+        doc = _doc(_para_with(_txt(f"[[date:{_DATE_A}]] tail")))
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_date_node(_DATE_A), _txt(" tail")])
+
+    def test_placeholder_at_end(self):
+        doc = _doc(_para_with(_txt(f"head [[date:{_DATE_A}]]")))
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("head "), _date_node(_DATE_A)])
 
 
 if __name__ == "__main__":

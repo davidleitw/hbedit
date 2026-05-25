@@ -280,3 +280,51 @@ def _split_text_on_card(text_node):
             seg["marks"] = marks
         result.append(seg)
     return result
+
+
+def substitute_date_placeholders(doc):
+    """Return a new ProseMirror doc with `[[date:<YYYY-MM-DD>]]` text
+    occurrences replaced by `date` nodes. Only strict `YYYY-MM-DD`
+    that also passes `datetime.date.fromisoformat` validation is
+    substituted; anything else stays as text. The input is not mutated."""
+    return _walk_substitute(_copy_module.deepcopy(doc), _split_text_on_date)
+
+
+def _split_text_on_date(text_node):
+    # Text with `code` mark is treated as opaque — never substitute.
+    for mark in text_node.get("marks") or []:
+        if mark.get("type") == "code":
+            return [text_node]
+    text = text_node.get("text", "")
+    matches = list(_DATE_PLACEHOLDER_RE.finditer(text))
+    if not matches:
+        return [text_node]
+    marks = text_node.get("marks")
+    result = []
+    cursor = 0
+    for m in matches:
+        raw = m.group(1)
+        # Calendar validation: defend against shapes the regex passes
+        # but are not real dates (e.g. 2026-13-99). Failed matches stay
+        # as part of the surrounding text run.
+        try:
+            _dt_module.date.fromisoformat(raw)
+        except ValueError:
+            continue
+        start, end = m.span()
+        if start > cursor:
+            seg = {"type": "text", "text": text[cursor:start]}
+            if marks:
+                seg["marks"] = marks
+            result.append(seg)
+        result.append({"type": "date", "attrs": {"date": raw}})
+        cursor = end
+    if cursor == 0:
+        # Every match was calendar-invalid → no substitution at all.
+        return [text_node]
+    if cursor < len(text):
+        seg = {"type": "text", "text": text[cursor:]}
+        if marks:
+            seg["marks"] = marks
+        result.append(seg)
+    return result

@@ -222,6 +222,7 @@ def _push_update(vault, cd, rel_path, body, card_id):
         try:
             new_doc = json.loads(htb.note_read(scratch["id"])["content"])
             new_doc = pm2md.substitute_card_placeholders(new_doc)
+            new_doc = pm2md.substitute_date_placeholders(new_doc)
             report = transplant.transplant_ids(old_doc, new_doc)
             try:
                 htb.note_save(card_id, json.dumps(new_doc), lock_md5)

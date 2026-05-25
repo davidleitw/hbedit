@@ -161,6 +161,38 @@ hbedit 包成 Claude Code plugin / Agent Skill。`SKILL.md` 告訴 agent
 因為原 block ID 在 round-trip 過程一直保留著,指向卡片內部 block 的引用
 (block reference、embed)都不會斷。
 
+### Card 引用 round-trip
+
+Heptabase 的卡片可以內嵌其他卡片 — 底層 ProseMirror 是一個 `card`
+node,UI 上呈現為 inline 或 block-level 的卡片引用。`pm2md` 把這種
+embed 序列化成 markdown 裡的 `[[card:<UUID>]]` placeholder。push 時
+hbedit 要把它轉回真正的 `card` node,但**沒辦法**只靠
+`heptabase note create` 達成:它的 markdown parser 不認識
+`[[card:<UUID>]]`,會把它留成純文字。
+
+hbedit 用兩步驟解決:
+
+1. 讓 `heptabase note create` 照常 parse markdown,placeholder 會
+   被當成純文字落到 ProseMirror 裡。
+2. 把這份 ProseMirror 讀回來,DFS 走一遍,把每個
+   `[[card:<valid-uuid>]]` text node 替換成真正的 `card` node,
+   再用 `heptabase note save` 把改過的 ProseMirror 存回去。
+
+第 2 步只在 markdown 包含字串 `[[card:` 時才跑。沒有 embed 的卡片
+走原本的單次呼叫路徑,沒有額外 round-trip。
+
+兩個要知道的影響:
+
+- **如果你要在卡片裡寫純文字的 `[[card:<UUID>]]`**(例如寫 hbedit
+  本身的說明文件),請用 backtick 包起來 `` `[[card:<UUID>]]` ``,
+  或寫進 fenced code block。沒包的話 hbedit 會在 push 時把它變成
+  真的 card embed,UUID 不存在就會變成 dangling reference。
+- **placeholder 大小寫不敏感**,但會 normalize 成小寫存。
+  `[[card:ABC...]]` 也可以。
+
+`date` inline node 跟 `mention` node 目前還不能 round-trip,pm2md
+序列化成 `<!-- UNCONVERTED ... -->`,push 回去會掉。
+
 ### 安全保證
 
 兩個值得知道的設計:
@@ -174,8 +206,12 @@ hbedit 包成 Claude Code plugin / Agent Skill。`SKILL.md` 告訴 agent
 
 ## 目前的限制
 
-- **沒辦法寫卡片之間的 reference**:plain markdown 沒有對應到 Heptabase
-  block reference 的語法,所以不能 round-trip。
+- **卡片內嵌 (card embed) round-trip 自 v0.1.2 起支援**,使用
+  `[[card:<UUID>]]` placeholder 語法(見上方「Card 引用
+  round-trip」)。針對特定 block 的 cross-card *block reference*
+  仍然不能 round-trip — 只有整張卡片的 embed 可以。
+- **`date` inline node 不能 round-trip**。會被序列化成
+  `<!-- UNCONVERTED inline date -->`,push 回去會掉。
 - **單卡 push 大約 10 萬字會撞天花板**:ProseMirror serialization 的硬限制。
 - **只支援 note 卡片**:journal、PDF、whiteboard 都不行。
 - **沒有 `hb mv`**:想改名 tracked `.md`,要手動編 `state.json`。
@@ -209,6 +245,19 @@ claude --plugin-dir /path/to/hbedit
 ## Changelog
 
 版本依 [SemVer](https://semver.org) 命名,新版在上。
+
+### v0.1.2 — 2026-05-25
+
+- Card embed(ProseMirror 裡的 `card` node)現在可以透過 `hb push`
+  完整 round-trip。markdown 裡的 `[[card:<UUID>]]` placeholder 會
+  在卡片儲存前被轉回真正的 card 引用。機制:讓 Heptabase 的 md
+  parser 先 parse 一次,我們再 post-process 出來的 ProseMirror,
+  最後 `note save` 改過的版本。詳見 **架構 → Card 引用 round-trip**。
+- **Breaking** — 之前依賴「`[[card:<UUID>]]` 會被當純文字 push」
+  這個行為的人,現在會變成真的 card embed。要保留純文字請改用
+  backtick 包 (`` `[[card:<UUID>]]` ``)。
+- 沒有 `[[card:` 字串的 markdown 行為 byte-for-byte 不變:fast-path
+  字串檢查不通過就完全 skip 新邏輯。
 
 ### v0.1.1 — 2026-05-25
 

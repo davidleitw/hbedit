@@ -184,6 +184,42 @@ it lets **Heptabase do the conversion for it**:
 Because the original block IDs survive the round-trip, anything linking
 into the card (block references, embeds) stays valid.
 
+### Card references round-trip
+
+Heptabase cards can embed other cards — a `card` node in the underlying
+ProseMirror, rendered as an inline or block-level reference in the UI.
+`pm2md` serializes such an embed as the placeholder string
+`[[card:<UUID>]]` in markdown. On push, hbedit converts the placeholder
+back into a real `card` node, but it can't do that through
+`heptabase note create` alone: that CLI's markdown parser doesn't know
+about `[[card:<UUID>]]` and would keep it as plain text.
+
+Instead hbedit uses a two-step trick:
+
+1. Let `heptabase note create` parse the markdown normally. The
+   placeholder lands as plain text inside the resulting ProseMirror.
+2. Read that ProseMirror back, walk it, replace each
+   `[[card:<valid-uuid>]]` text occurrence with a real `card` node,
+   and `heptabase note save` the modified ProseMirror.
+
+Step 2 only runs when the source markdown contains the literal
+substring `[[card:`. Cards without any embeds get the original
+single-call path — no extra round-trips.
+
+Two consequences worth knowing:
+
+- **If you write `[[card:<UUID>]]` as literal text** (e.g. in
+  documentation about hbedit itself), wrap it in backticks
+  (`` `[[card:<UUID>]]` ``) or put it inside a fenced code block.
+  Unwrapped, hbedit will convert it on push — and if the UUID isn't
+  a real card, you'll end up with a dangling reference in Heptabase.
+- **The placeholder syntax is case-insensitive** on the way in but
+  lowercased before storage. `[[card:ABC...]]` works.
+
+`date` inline nodes and `mention` nodes don't yet round-trip; pm2md
+serializes them as `<!-- UNCONVERTED ... -->` markers and pushing back
+loses them.
+
 ### Safety guarantees
 
 Two things worth knowing:
@@ -199,8 +235,12 @@ Two things worth knowing:
 
 ## Current limitations
 
-- **No card-to-card references from markdown.** Block references into
-  other cards can't be expressed in plain markdown, so they can't round-trip.
+- **Card embed round-trip works since v0.1.2** via the `[[card:<UUID>]]`
+  placeholder syntax (see "Card references round-trip" above). Block-level
+  cross-card *block references* (pointing at a specific block inside
+  another card) still don't round-trip — only whole-card embeds.
+- **`date` inline nodes don't round-trip.** They serialize as
+  `<!-- UNCONVERTED inline date -->` and pushing loses them.
 - **~100,000 character push ceiling.** Very large cards may hit a
   ProseMirror serialization limit and fail.
 - **Note cards only.** Journal entries, PDFs, and whiteboards are not
@@ -239,6 +279,22 @@ clean up afterward.
 ## Changelog
 
 Versions follow [SemVer](https://semver.org). Newest first.
+
+### v0.1.2 — 2026-05-25
+
+- Card embeds (`card` nodes in ProseMirror) now round-trip through
+  `hb push`. The placeholder `[[card:<UUID>]]` in markdown is
+  converted back to a real card embed before the card is saved.
+  Mechanism: post-process the ProseMirror that Heptabase's parser
+  returns from `note create`, then `note save` the modified version.
+  See **Architecture → Card references round-trip**.
+- **Breaking** for anyone who relied on `[[card:<UUID>]]` being
+  preserved as plain text on push: it now becomes a real card embed.
+  Wrap such literal text in backticks (`` `[[card:<UUID>]]` ``) to
+  keep it as text.
+- No behavior change for cards without any `[[card:` substring in
+  their markdown: the new code path is gated behind a string check
+  and skipped entirely.
 
 ### v0.1.1 — 2026-05-25
 

@@ -32,5 +32,66 @@ class TestNumbering(unittest.TestCase):
         self.assertNotIn("2. b", md)
 
 
+# --- helpers for substitute_card_placeholders tests --------------------
+_UUID_A = "25cac23e-d3fd-466d-8a6b-70721047ab9b"
+_UUID_B = "f20c620f-f442-4fc5-acf8-0d94c4d8391b"
+
+
+def _doc(*blocks):
+    return {"type": "doc", "content": list(blocks)}
+
+
+def _txt(text, marks=None):
+    node = {"type": "text", "text": text}
+    if marks:
+        node["marks"] = marks
+    return node
+
+
+def _para_with(*children):
+    return {"type": "paragraph",
+            "attrs": {"id": "para-id-fixed"},
+            "content": list(children)}
+
+
+def _card_node(card_id):
+    return {"type": "card", "attrs": {"cardId": card_id}}
+
+
+class TestSubstituteCardPlaceholders(unittest.TestCase):
+    """Substitution of `[[card:UUID]]` text into ProseMirror `card` nodes.
+
+    Pure function — every test should assert the output structure
+    exactly, never modify the input."""
+
+    def test_pure_placeholder_becomes_card(self):
+        doc = _doc(_para_with(_txt(f"[[card:{_UUID_A}]]")))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_card_node(_UUID_A)])
+
+    def test_prefix_placeholder_suffix_split(self):
+        doc = _doc(_para_with(_txt(f"見 [[card:{_UUID_A}]] 那張")))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("見 "), _card_node(_UUID_A), _txt(" 那張")])
+
+    def test_placeholder_at_start(self):
+        doc = _doc(_para_with(_txt(f"[[card:{_UUID_A}]] tail")))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_card_node(_UUID_A), _txt(" tail")])
+
+    def test_placeholder_at_end(self):
+        doc = _doc(_para_with(_txt(f"head [[card:{_UUID_A}]]")))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("head "), _card_node(_UUID_A)])
+
+
 if __name__ == "__main__":
     unittest.main()

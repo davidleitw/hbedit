@@ -5,6 +5,8 @@ recognise (instead of silently dropping it) so round-trip fidelity can be
 measured honestly.
 """
 from __future__ import annotations
+import copy as _copy_module
+import re as _re_module
 
 # Heptabase list-item node type -> markdown marker. Lists are flat node
 # sequences (each item carries its own type), not wrapped in a list container.
@@ -191,3 +193,61 @@ class Converter:
 def to_markdown(doc):
     c = Converter()
     return c.convert(doc), c
+
+
+# ---------------------------------------------------------------------
+# Card placeholder substitution: `[[card:UUID]]` text → `card` node
+# ---------------------------------------------------------------------
+
+_CARD_PLACEHOLDER_RE = _re_module.compile(
+    r"\[\[card:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}"
+    r"-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\]\]"
+)
+
+
+def substitute_card_placeholders(doc):
+    """Return a new ProseMirror doc with `[[card:<uuid>]]` text occurrences
+    replaced by `card` nodes. The input is not mutated."""
+    return _walk_substitute(_copy_module.deepcopy(doc))
+
+
+def _walk_substitute(node):
+    if not isinstance(node, dict):
+        return node
+    children = node.get("content")
+    if not children:
+        return node
+    new_children = []
+    for child in children:
+        if isinstance(child, dict) and child.get("type") == "text":
+            new_children.extend(_split_text_on_placeholder(child))
+        else:
+            new_children.append(_walk_substitute(child))
+    node["content"] = new_children
+    return node
+
+
+def _split_text_on_placeholder(text_node):
+    text = text_node.get("text", "")
+    matches = list(_CARD_PLACEHOLDER_RE.finditer(text))
+    if not matches:
+        return [text_node]
+    marks = text_node.get("marks")
+    result = []
+    cursor = 0
+    for m in matches:
+        start, end = m.span()
+        if start > cursor:
+            seg = {"type": "text", "text": text[cursor:start]}
+            if marks:
+                seg["marks"] = marks
+            result.append(seg)
+        result.append({"type": "card",
+                       "attrs": {"cardId": m.group(1).lower()}})
+        cursor = end
+    if cursor < len(text):
+        seg = {"type": "text", "text": text[cursor:]}
+        if marks:
+            seg["marks"] = marks
+        result.append(seg)
+    return result

@@ -6,6 +6,7 @@ measured honestly.
 """
 from __future__ import annotations
 import copy as _copy_module
+import datetime as _dt_module
 import re as _re_module
 
 # Heptabase list-item node type -> markdown marker. Lists are flat node
@@ -148,6 +149,18 @@ class Converter:
             return self._apply_marks(node.get("text", ""), node.get("marks", []))
         if t == "card":
             return "[[card:" + node.get("attrs", {}).get("cardId", "?") + "]]"
+        if t == "date":
+            raw = (node.get("attrs", {}).get("date") or "")
+            if _STRICT_DATE_RE.fullmatch(raw):
+                try:
+                    _dt_module.date.fromisoformat(raw)
+                    return "[[date:" + raw + "]]"
+                except ValueError:
+                    pass
+            # Fall through to UNCONVERTED so we never claim a round-trip
+            # we cannot honor.
+            self.unknown_nodes.add("date")
+            return "<!-- UNCONVERTED inline date -->"
         if t in ("hard_break", "br"):
             return "\n"
         if t == "math_inline":
@@ -202,6 +215,12 @@ def to_markdown(doc):
 _CARD_PLACEHOLDER_RE = _re_module.compile(
     r"\[\[card:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}"
     r"-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\]\]"
+)
+
+_STRICT_DATE_RE = _re_module.compile(r"\d{4}-\d{2}-\d{2}")
+
+_DATE_PLACEHOLDER_RE = _re_module.compile(
+    r"\[\[date:(\d{4}-\d{2}-\d{2})\]\]"
 )
 
 

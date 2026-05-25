@@ -231,5 +231,62 @@ class TestSubstituteCardPlaceholders(unittest.TestCase):
         self.assertEqual(out, {"type": "doc"})
 
 
+class TestToMarkdownDate(unittest.TestCase):
+    """to_markdown emits `[[date:YYYY-MM-DD]]` for valid date nodes and
+    falls back to `<!-- UNCONVERTED inline date -->` when the date
+    attribute is missing, malformed, or calendar-invalid."""
+
+    def test_pure_date_emits_placeholder(self):
+        doc = {"type": "doc", "content": [
+            {"type": "paragraph", "attrs": {"id": "p"}, "content": [
+                {"type": "date", "attrs": {"date": "2026-05-26"}}]}]}
+        md, conv = pm2md.to_markdown(doc)
+        self.assertEqual(md, "[[date:2026-05-26]]")
+        self.assertNotIn("date", conv.unknown_nodes)
+
+    def test_date_with_surrounding_text(self):
+        doc = {"type": "doc", "content": [
+            {"type": "paragraph", "attrs": {"id": "p"}, "content": [
+                {"type": "text", "text": "today is "},
+                {"type": "date", "attrs": {"date": "2026-05-26"}},
+                {"type": "text", "text": " ok"}]}]}
+        md, _ = pm2md.to_markdown(doc)
+        self.assertEqual(md, "today is [[date:2026-05-26]] ok")
+
+    def test_multiple_dates_in_paragraph(self):
+        doc = {"type": "doc", "content": [
+            {"type": "paragraph", "attrs": {"id": "p"}, "content": [
+                {"type": "date", "attrs": {"date": "2026-05-26"}},
+                {"type": "text", "text": " then "},
+                {"type": "date", "attrs": {"date": "2026-12-25"}}]}]}
+        md, _ = pm2md.to_markdown(doc)
+        self.assertEqual(md,
+            "[[date:2026-05-26]] then [[date:2026-12-25]]")
+
+    def test_missing_date_attr_falls_back(self):
+        doc = {"type": "doc", "content": [
+            {"type": "paragraph", "attrs": {"id": "p"}, "content": [
+                {"type": "date", "attrs": {}}]}]}
+        md, conv = pm2md.to_markdown(doc)
+        self.assertEqual(md, "<!-- UNCONVERTED inline date -->")
+        self.assertIn("date", conv.unknown_nodes)
+
+    def test_non_strict_date_falls_back(self):
+        doc = {"type": "doc", "content": [
+            {"type": "paragraph", "attrs": {"id": "p"}, "content": [
+                {"type": "date", "attrs": {"date": "2026-05-26T10:30"}}]}]}
+        md, conv = pm2md.to_markdown(doc)
+        self.assertEqual(md, "<!-- UNCONVERTED inline date -->")
+        self.assertIn("date", conv.unknown_nodes)
+
+    def test_calendar_invalid_date_falls_back(self):
+        doc = {"type": "doc", "content": [
+            {"type": "paragraph", "attrs": {"id": "p"}, "content": [
+                {"type": "date", "attrs": {"date": "2026-13-99"}}]}]}
+        md, conv = pm2md.to_markdown(doc)
+        self.assertEqual(md, "<!-- UNCONVERTED inline date -->")
+        self.assertIn("date", conv.unknown_nodes)
+
+
 if __name__ == "__main__":
     unittest.main()

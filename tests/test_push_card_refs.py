@@ -229,5 +229,100 @@ class TestPushUpdateWithPlaceholder(unittest.TestCase):
             self.assertEqual(wrapping_para["attrs"]["id"], "p-old")
 
 
+class TestPushCreateWithPlaceholder(unittest.TestCase):
+    """_push_create: when body contains [[card:UUID]], an intermediate
+    read+save is performed to replace the placeholder with a card node."""
+
+    def test_placeholder_triggers_substitute_and_save(self):
+        with tempfile.TemporaryDirectory() as root:
+            vaultlib.init_vault(root)
+            rel = "a.md"
+            abs_path = os.path.join(root, rel)
+            with open(abs_path, "w") as f:
+                f.write(f"# t\n\n[[card:{_UUID_A}]]")
+
+            from vault import find as vault_find
+            info = vault_find(abs_path)
+            vault, cd = info.root, info.cache_dir
+
+            intermediate_pm = _scratch_pm_with_placeholder_text()
+            saved_payloads = []
+
+            def fake_save(card_id_arg, content, content_md5):
+                saved_payloads.append((card_id_arg, content, content_md5))
+                return {"id": card_id_arg, "title": "t",
+                        "contentMd5": "after-save-md5"}
+
+            with mock.patch.object(hbedit.htb, "note_create",
+                                   return_value={"id": "new-card-id",
+                                                 "title": "t"}), \
+                 mock.patch.object(hbedit.htb, "note_read",
+                                   side_effect=[
+                                       {"id": "new-card-id", "title": "t",
+                                        "content": json.dumps(intermediate_pm),
+                                        "contentMd5": "intermediate-md5"},
+                                       {"id": "new-card-id", "title": "t",
+                                        "content": json.dumps(intermediate_pm),
+                                        "contentMd5": "after-save-md5"},
+                                   ]) as nr, \
+                 mock.patch.object(hbedit.htb, "note_save",
+                                   side_effect=fake_save) as ns:
+                hbedit._push_create(vault, cd, rel,
+                                    f"# t\n\n[[card:{_UUID_A}]]")
+
+            # save was called once with the intermediate's md5 as lock
+            self.assertEqual(len(saved_payloads), 1)
+            card_id_arg, content, lock = saved_payloads[0]
+            self.assertEqual(card_id_arg, "new-card-id")
+            self.assertEqual(lock, "intermediate-md5")
+            # saved payload contains a card node — structural check
+            saved_doc = json.loads(content)
+            # The paragraph (content[1]) should contain a card node after substitution
+            self.assertEqual(
+                saved_doc["content"][1]["content"][0]["type"], "card")
+            # note_read was called TWICE (intermediate + final-for-sidecar)
+            self.assertEqual(nr.call_count, 2)
+
+
+class TestPushCreateSubstitutionFailure(unittest.TestCase):
+    """If the substitution save fails, emit create-failed with detail
+    that mentions the card was created and substitution did not complete."""
+
+    def test_save_failure_reports_create_failed(self):
+        with tempfile.TemporaryDirectory() as root:
+            vaultlib.init_vault(root)
+            rel = "a.md"
+            abs_path = os.path.join(root, rel)
+            with open(abs_path, "w") as f:
+                f.write(f"# t\n\n[[card:{_UUID_A}]]")
+
+            from vault import find as vault_find
+            info = vault_find(abs_path)
+            vault, cd = info.root, info.cache_dir
+
+            intermediate_pm = _scratch_pm_with_placeholder_text()
+
+            with mock.patch.object(hbedit.htb, "note_create",
+                                   return_value={"id": "new-card-id",
+                                                 "title": "t"}), \
+                 mock.patch.object(hbedit.htb, "note_read",
+                                   return_value={
+                                       "id": "new-card-id", "title": "t",
+                                       "content": json.dumps(intermediate_pm),
+                                       "contentMd5": "im"}), \
+                 mock.patch.object(hbedit.htb, "note_save",
+                                   side_effect=hbedit.htb.HtbError(
+                                       "heptabase note save failed: boom")):
+                out, rc = hbedit._push_create(vault, cd, rel,
+                                              f"# t\n\n[[card:{_UUID_A}]]")
+
+            self.assertEqual(rc, 2)
+            obj = json.loads(out)
+            self.assertEqual(obj["status"], "error")
+            self.assertEqual(obj["code"], "create-failed")
+            self.assertIn("substitution", obj["detail"])
+            self.assertIn("new-card-id", obj["detail"])
+
+
 if __name__ == "__main__":
     unittest.main()

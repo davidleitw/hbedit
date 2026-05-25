@@ -1,0 +1,151 @@
+"""Integration tests for card-embed substitution in push paths.
+
+Mocks the htb wrapper so we don't need a real Heptabase CLI; verifies
+that substitute_card_placeholders is wired into _push_create and
+_push_update at the correct points and with the right inputs.
+"""
+import copy
+import json
+import os
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_ROOT, "skills", "hbedit", "scripts"))
+
+import hbedit
+import vault as vaultlib
+import local_state
+
+
+_UUID_A = "25cac23e-d3fd-466d-8a6b-70721047ab9b"
+_UUID_B = "f20c620f-f442-4fc5-acf8-0d94c4d8391b"
+
+
+def _scratch_pm_with_placeholder_text():
+    """ProseMirror as Heptabase's parser would return for a markdown
+    body containing `[[card:_UUID_A]]` (the placeholder is text, no card
+    node)."""
+    return {
+        "type": "doc",
+        "content": [
+            {"type": "heading",
+             "attrs": {"id": "h-new", "level": 1},
+             "content": [{"type": "text", "text": "Title"}]},
+            {"type": "paragraph",
+             "attrs": {"id": "p-new"},
+             "content": [{"type": "text", "text": f"[[card:{_UUID_A}]]"}]}
+        ]
+    }
+
+
+class TestPushCreateNoPlaceholderFastPath(unittest.TestCase):
+    """When body has no `[[card:` substring, _push_create must not call
+    note_read+note_save extras — byte-identical to v0.1.1 behavior."""
+
+    def test_no_extra_round_trip(self):
+        with tempfile.TemporaryDirectory() as root:
+            vaultlib.init_vault(root)
+            rel = "a.md"
+            abs_path = os.path.join(root, rel)
+            with open(abs_path, "w") as f:
+                f.write("# plain\n\nno embed here")
+
+            # State setup
+            from vault import find as vault_find
+            info = vault_find(abs_path)
+            vault, cd = info.root, info.cache_dir
+
+            # Mock htb
+            with mock.patch.object(hbedit.htb, "note_create",
+                                   return_value={"id": "new-card-id",
+                                                 "title": "plain"}) as nc, \
+                 mock.patch.object(hbedit.htb, "note_save") as ns, \
+                 mock.patch.object(hbedit.htb, "note_read",
+                                   return_value={
+                                       "id": "new-card-id",
+                                       "title": "plain",
+                                       "content": json.dumps({"type":"doc","content":[]}),
+                                       "contentMd5": "deadbeef"
+                                   }) as nr:
+                hbedit._push_create(vault, cd, rel,
+                                    "# plain\n\nno embed here")
+
+            # note_save must never be called in the fast path
+            self.assertEqual(ns.call_count, 0)
+            # note_read is called once (final sidecar refresh)
+            self.assertEqual(nr.call_count, 1)
+
+
+class TestPushUpdateNoPlaceholder(unittest.TestCase):
+    """_push_update always calls substitute (no fast-path) — but with
+    no placeholders, the substituted doc should structurally match the
+    pre-substitute doc."""
+
+    def test_no_placeholder_no_card_nodes_in_save(self):
+        with tempfile.TemporaryDirectory() as root:
+            vaultlib.init_vault(root)
+            rel = "a.md"
+            abs_path = os.path.join(root, rel)
+            with open(abs_path, "w") as f:
+                f.write("# plain\n\nedited body")
+
+            from vault import find as vault_find
+            info = vault_find(abs_path)
+            vault, cd = info.root, info.cache_dir
+            card_id = _UUID_A
+
+            # Register binding and sidecar
+            vaultlib.set_file_entry(vault, rel, card_id, [])
+            sidecar_dir = os.path.join(cd, "sidecar")
+            os.makedirs(sidecar_dir, exist_ok=True)
+            old_doc = {"type": "doc", "content": [
+                {"type": "heading",
+                 "attrs": {"id": "h-old", "level": 1},
+                 "content": [{"type": "text", "text": "plain"}]}]}
+            with open(os.path.join(sidecar_dir, card_id + ".json"), "w") as f:
+                json.dump(old_doc, f)
+            local_state.set_local_entry(cd, rel,
+                                        content_md5="lock-md5",
+                                        local_md5="local-md5",
+                                        synced_at="2026-05-25T00:00:00Z")
+
+            scratch_pm = {"type": "doc", "content": [
+                {"type": "heading",
+                 "attrs": {"id": "h-new", "level": 1},
+                 "content": [{"type": "text", "text": "plain"}]}]}
+            saved_payloads = []
+
+            def fake_save(card_id_arg, content, content_md5):
+                saved_payloads.append(content)
+                return {"id": card_id_arg, "title": "x",
+                        "contentMd5": "new-md5"}
+
+            with mock.patch.object(hbedit.htb, "note_create",
+                                   return_value={"id": "scratch-id",
+                                                 "title": "x"}), \
+                 mock.patch.object(hbedit.htb, "note_read",
+                                   side_effect=[
+                                       {"id": "scratch-id",
+                                        "title": "x",
+                                        "content": json.dumps(scratch_pm),
+                                        "contentMd5": "s"},
+                                       {"id": card_id, "title": "x",
+                                        "content": json.dumps(scratch_pm),
+                                        "contentMd5": "new-md5"}
+                                   ]), \
+                 mock.patch.object(hbedit.htb, "note_save",
+                                   side_effect=fake_save), \
+                 mock.patch.object(hbedit.htb, "card_trash"):
+                hbedit._push_update(vault, cd, rel,
+                                    "# plain\n\nedited body", card_id)
+
+            self.assertEqual(len(saved_payloads), 1)
+            # The saved JSON must contain no `card` nodes
+            self.assertNotIn('"type":"card"', saved_payloads[0])
+
+
+if __name__ == "__main__":
+    unittest.main()

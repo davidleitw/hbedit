@@ -148,6 +148,46 @@ Agent steps:
 1. Tell user the card is already linked to `<other-path>`.
 2. Ask: edit there instead, or unlink first (`hb unlink <other-path>`)?
 
+## create-failed
+
+What happened: `hb push` failed while creating a new card. Two sub-cases,
+distinguished by the `detail` field:
+
+**Sub-case A — card never created.** `detail` is a plain CLI error
+(e.g. network failure, validation error). Nothing exists on Heptabase,
+nothing changed in `state.json`.
+
+Agent steps:
+1. Surface the `detail` to the user.
+2. Address the underlying cause (retry transient failure, fix body, etc.).
+3. Re-run `hb push <path>`.
+
+**Sub-case B — card created, substitution failed.** `detail` contains
+`substitution failed` and `id=<cardId>` and `The card exists on Heptabase
+with placeholders unresolved.` The card **is** on Heptabase, but no entry
+was written to `state.json`. A naive retry of `hb push <path>` will create
+a **second** card with the same content, leaving the first as an orphan.
+
+Agent steps:
+1. **Stop.** Do not retry `hb push <path>` blindly — that creates a
+   duplicate orphan.
+2. Extract `<cardId>` from the `detail` string and show it to the user
+   along with what state the card is in (exists on Heptabase,
+   `[[card:…]]` / `[[date:…]]` placeholders unresolved, not registered
+   locally).
+3. **Present** the two recovery options without executing them:
+   - **Adopt the orphan**: `hb pull <cardId> <path>` to bind the existing
+     card to the local file, then `hb push <path>` to retry the
+     substitution via the update flow. Preserves the cardId and any inbound
+     references already pointing at it.
+   - **Discard the orphan**: run `heptabase card trash <cardId>` (or
+     trash it from the desktop app — hbedit itself has no trash-by-id
+     subcommand), then re-run `hb push <path>` for a clean create. Loses
+     the cardId — use only if nothing references it yet.
+4. **Wait for explicit user choice** before running either recovery. Do
+   not pick on the user's behalf; the right call depends on whether they
+   already shared the cardId out.
+
 ## state-schema-unsupported
 
 What happened: `state.json` has `schemaVersion` other than 3.

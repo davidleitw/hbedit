@@ -214,6 +214,9 @@ def substitute_card_placeholders(doc):
 def _walk_substitute(node):
     if not isinstance(node, dict):
         return node
+    # Do not descend into code_block subtrees.
+    if node.get("type") == "code_block":
+        return node
     children = node.get("content")
     if not children:
         return node
@@ -228,6 +231,10 @@ def _walk_substitute(node):
 
 
 def _split_text_on_placeholder(text_node):
+    # Text with `code` mark is treated as opaque — never substitute.
+    for mark in text_node.get("marks") or []:
+        if mark.get("type") == "code":
+            return [text_node]
     text = text_node.get("text", "")
     matches = list(_CARD_PLACEHOLDER_RE.finditer(text))
     if not matches:

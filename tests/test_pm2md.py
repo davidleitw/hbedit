@@ -156,6 +156,40 @@ class TestSubstituteCardPlaceholders(unittest.TestCase):
             out["content"][0]["content"],
             [_txt(f"[[card: {_UUID_A}]]")])
 
+    def test_code_mark_text_not_substituted(self):
+        # Text with code mark stays as-is
+        doc = _doc(_para_with(
+            _txt(f"[[card:{_UUID_A}]]", marks=[{"type": "code"}])))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt(f"[[card:{_UUID_A}]]", marks=[{"type": "code"}])])
+
+    def test_code_block_subtree_not_substituted(self):
+        # text inside code_block stays as-is
+        doc = _doc({
+            "type": "code_block",
+            "attrs": {"id": "cb", "params": "python"},
+            "content": [_txt(f"[[card:{_UUID_A}]]")]
+        })
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt(f"[[card:{_UUID_A}]]")])
+
+    def test_strong_mark_preserved_on_split_segments(self):
+        # Text with strong (non-code) mark: substitute, segments keep mark,
+        # card carries no mark.
+        doc = _doc(_para_with(
+            _txt(f"a [[card:{_UUID_A}]] b",
+                 marks=[{"type": "strong"}])))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("a ", marks=[{"type": "strong"}]),
+             _card_node(_UUID_A),
+             _txt(" b", marks=[{"type": "strong"}])])
+
 
 if __name__ == "__main__":
     unittest.main()

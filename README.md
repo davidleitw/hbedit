@@ -216,9 +216,19 @@ Two consequences worth knowing:
 - **The placeholder syntax is case-insensitive** on the way in but
   lowercased before storage. `[[card:ABC...]]` works.
 
-`date` inline nodes and `mention` nodes don't yet round-trip; pm2md
-serializes them as `<!-- UNCONVERTED ... -->` markers and pushing back
-loses them.
+`date` inline nodes round-trip via the same mechanism, using the
+strict `[[date:YYYY-MM-DD]]` placeholder syntax (calendar-validated on
+both ends; non-strict shapes such as time-bearing dates fall back to
+`<!-- UNCONVERTED inline date -->` so the markdown never claims a
+round-trip the tool cannot honor). `mention` nodes still don't
+round-trip — they serialize as `<!-- UNCONVERTED inline mention -->`
+and pushing loses them.
+
+**Migrating older pulls:** `.md` files in your vault that still
+contain `<!-- UNCONVERTED inline date -->` from a prior version do NOT
+auto-upgrade. Re-pull the affected card (`hb pull <path>`) to refresh
+the markdown with the new placeholder. If you push without re-pulling,
+the date is lost — the same behavior as the prior version.
 
 ### Safety guarantees
 
@@ -239,8 +249,13 @@ Two things worth knowing:
   placeholder syntax (see "Card references round-trip" above). Block-level
   cross-card *block references* (pointing at a specific block inside
   another card) still don't round-trip — only whole-card embeds.
-- **`date` inline nodes don't round-trip.** They serialize as
-  `<!-- UNCONVERTED inline date -->` and pushing loses them.
+- **Date inline nodes round-trip** via the `[[date:YYYY-MM-DD]]`
+  placeholder syntax (same mechanism as card embeds; see "Card
+  references round-trip" above). If you want literal
+  `[[date:YYYY-MM-DD]]` text in your markdown, wrap it in backticks
+  (`` `[[date:2026-05-26]]` ``). Future Heptabase additions such as
+  time-of-day or timezone fall back to the `<!-- UNCONVERTED inline
+  date -->` comment until a future placeholder revision adds support.
 - **~100,000 character push ceiling.** Very large cards may hit a
   ProseMirror serialization limit and fail.
 - **Note cards only.** Journal entries, PDFs, and whiteboards are not

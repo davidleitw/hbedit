@@ -190,8 +190,16 @@ hbedit 用兩步驟解決:
 - **placeholder 大小寫不敏感**,但會 normalize 成小寫存。
   `[[card:ABC...]]` 也可以。
 
-`date` inline node 跟 `mention` node 目前還不能 round-trip,pm2md
-序列化成 `<!-- UNCONVERTED ... -->`,push 回去會掉。
+`date` inline node 透過同一個機制 round-trip,使用嚴格
+`[[date:YYYY-MM-DD]]` placeholder 語法(兩端都會做行事曆驗證;非
+嚴格格式例如帶時間的會 fall back 回 `<!-- UNCONVERTED inline date -->`,
+markdown 不會假裝可以 round-trip 一個工具其實處理不了的形態)。
+`mention` node 還是不能 round-trip,序列化成
+`<!-- UNCONVERTED inline mention -->`,push 回去會掉。
+
+**舊 pull 的遷移**:vault 裡仍含 `<!-- UNCONVERTED inline date -->`
+的 `.md` 不會自動升級。請對那張卡片重新 `hb pull <path>`,markdown
+才會更新成新 placeholder。沒重 pull 就 push 一樣會掉 date,行為跟舊版相同。
 
 ### 安全保證
 
@@ -210,8 +218,13 @@ hbedit 用兩步驟解決:
   `[[card:<UUID>]]` placeholder 語法(見上方「Card 引用
   round-trip」)。針對特定 block 的 cross-card *block reference*
   仍然不能 round-trip — 只有整張卡片的 embed 可以。
-- **`date` inline node 不能 round-trip**。會被序列化成
-  `<!-- UNCONVERTED inline date -->`,push 回去會掉。
+- **Date inline node round-trip 支援**,使用 `[[date:YYYY-MM-DD]]`
+  placeholder 語法(機制跟 card embed 相同;見上方「Card 引用
+  round-trip」)。如果要在 markdown 裡寫純文字的
+  `[[date:YYYY-MM-DD]]`,用 backtick 包起來
+  (`` `[[date:2026-05-26]]` ``)。Heptabase 未來如果加 time-of-day
+  或 timezone,在未支援前會 fall back 回
+  `<!-- UNCONVERTED inline date -->` 註解。
 - **單卡 push 大約 10 萬字會撞天花板**:ProseMirror serialization 的硬限制。
 - **只支援 note 卡片**:journal、PDF、whiteboard 都不行。
 - **沒有 `hb mv`**:想改名 tracked `.md`,要手動編 `state.json`。

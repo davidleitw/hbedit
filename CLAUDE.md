@@ -6,17 +6,19 @@ Instructions that apply to any Claude Code session opened in this repo.
 
 When tagging a new version (`vX.Y.Z`):
 
-1. Add a `### vX.Y.Z — YYYY-MM-DD` block at the top of `## Changelog` in
-   **both** `README.md` and `README.zh.md`. Bullet user-visible changes
-   only — implementation refactors with no behavior change don't belong
-   here. Keep voice consistent with prior entries.
+1. Add a `## vX.Y.Z — YYYY-MM-DD` block at the top of `CHANGELOG.md`
+   (the canonical changelog — English, single source of truth). Bullet
+   user-visible changes only — implementation refactors with no
+   behavior change don't belong here. Keep voice consistent with prior
+   entries. Both READMEs only link to `CHANGELOG.md`; do not re-add
+   inline per-version sections to either README.
 2. Bump `version` in `.claude-plugin/plugin.json` to match the tag.
 3. Commit those changes together as `chore(release): vX.Y.Z` and tag
    that commit.
 4. Tag and branch get pushed together — never push a tag whose changelog
    entry isn't yet committed.
 
-The two READMEs, the manifest version, and the git tag should all
+`CHANGELOG.md`, the manifest version, and the git tag should all
 describe the same state. If one is missing the others, the release is
 not yet ready.
 

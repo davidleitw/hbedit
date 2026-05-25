@@ -17,20 +17,12 @@ hbedit 讓你(或 AI agent)把 Heptabase 上的卡當成普通 markdown 檔來�
 如果你只是要**開一張新卡**或**加一行字**到既有卡片末尾,直接用官方 CLI 就好,
 更簡單,也不用裝 hbedit。
 
-## hbedit 實際做了什麼
-
-Heptabase 卡片內容**內部**是 ProseMirror JSON 格式。官方 CLI 提供 `create`、
-`append`、`read` —— 但沒有「拿改好的 markdown 換掉既有卡片內容」這個動作。
-hbedit 補的就是這個缺口。Push 的時候,它把你改好的 markdown 丟給 Heptabase
-建一張 scratch 卡,讓 Heptabase 自己產生對應的 ProseMirror JSON,把原卡的
-block ID 蓋到那份 JSON 對應的 block 上,存回真正那張卡,再把 scratch 卡
-trash 掉。原卡 ID 保留下來,指向它 block 的引用也都不會斷。
-
-Pull、衝突處理、per-machine cache 在下面的[架構](#架構--怎麼運作的)章節展開。
+實際怎麼改寫(scratch-card 招數、衝突保護、per-machine cache),下面的
+[架構](#架構--怎麼運作的)那段有講。
 
 ## 怎麼裝
 
-先備齊:
+你會需要:
 
 - Python 3.9+(純 stdlib、不用 pip)
 - Heptabase 桌面 app,**v1.91.0 或更新**,而且要開著
@@ -63,7 +55,7 @@ curl -fsSL https://raw.githubusercontent.com/davidleitw/hbedit/master/install.sh
 hb doctor
 ```
 
-回 `"status": "ok"` 就成了。其他結果照它印的 `detail` 修(多半是還沒裝
+回 `"status": "ok"` 就可以了。其他結果照它印的 `detail` 修(多半是還沒裝
 `heptabase` CLI、版本不對、或桌面 app 沒開)。手動安裝步驟、不放心
 `curl | sh` 想先檢查的對策,完整版在 [`INSTALL.md`](./INSTALL.md)。
 
@@ -74,7 +66,7 @@ hb doctor
 
 ### 1. 改一張既有卡片
 
-最主要的用途。卡片已經在 Heptabase 上、你想改它裡面的東西。
+最常見的場景。卡片已經在 Heptabase 上,你想改裡面的內容。
 
 > *「我那張 React Hooks 卡片裡的 `useEffec` 是 typo,改成 `useEffect`,
 > 順便把段落順序調一下,useState 放前面。」*
@@ -257,82 +249,7 @@ claude --plugin-dir /path/to/hbedit
 
 ## Changelog
 
-版本依 [SemVer](https://semver.org) 命名,新版在上。
-
-### v0.1.4 — 2026-05-26
-
-- Date inline node(ProseMirror 裡的 `date` node)現在可以透過
-  `hb pull` / `hb push` 完整 round-trip,使用嚴格
-  `[[date:YYYY-MM-DD]]` placeholder 語法。Pull 端只在 `attrs.date`
-  通過 `YYYY-MM-DD` 正則 **且** `datetime.date.fromisoformat`
-  接受時才 emit placeholder,否則 fall back 回原本的
-  `<!-- UNCONVERTED inline date -->` 註解 — markdown 不會假裝可以
-  round-trip 一個工具其實處理不了的形態。Push 端做對稱的行事曆
-  驗證。機制跟 v0.1.2 的 card embed 一致。詳見「目前的限制」段的
-  遷移說明與 forward-compat 注意事項。
-- **Breaking**:之前依賴「`[[date:YYYY-MM-DD]]` 會被當純文字 push」
-  這個行為的人,現在會變成真的 date inline node。要保留純文字請
-  改用 backtick 包 (`` `[[date:2026-05-26]]` ``)。
-- vault 裡仍含 `<!-- UNCONVERTED inline date -->` 的 `.md` **不會**
-  自動升級。請對那張卡片重新 `hb pull <path>` 才會更新成新
-  placeholder;沒重 pull 就 push 一樣會掉 date,行為跟 v0.1.3 相同。
-- **docs**:`skills/hbedit/references/errors.md` 新增 `create-failed`
-  SOP,涵蓋 v0.1.2 引入、v0.1.4 generalize 後的「卡片建好了但
-  substitution 失敗」sub-case。agent 千萬不要直接 retry
-  `hb push` — 會產生 duplicate orphan。
-
-### v0.1.3 — 2026-05-26
-
-- **fix**:README / README.zh / INSTALL.md 裡的 `curl | sh` 一鍵指令
-  指向不存在的 `main` 分支。這個 repo 預設分支是 `master`,任何照文件
-  抄 one-liner 的人都會撞 404、裝不起來。`install.sh -h` help 也跟著修。
-- **docs**:`install.sh` refresh 行為的註解之前不誠實 — 寫「discards
-  local edits」,但 `git reset --hard` 只清 tracked files,untracked
-  會留著。註解改成真實行為描述。(沒改 code。)
-
-### v0.1.2 — 2026-05-25
-
-- Card embed(ProseMirror 裡的 `card` node)現在可以透過 `hb push`
-  完整 round-trip。markdown 裡的 `[[card:<UUID>]]` placeholder 會
-  在卡片儲存前被轉回真正的 card 引用。機制:讓 Heptabase 的 md
-  parser 先 parse 一次,我們再 post-process 出來的 ProseMirror,
-  最後 `note save` 改過的版本。詳見 **架構 → Card 引用 round-trip**。
-- **Breaking** — 之前依賴「`[[card:<UUID>]]` 會被當純文字 push」
-  這個行為的人,現在會變成真的 card embed。要保留純文字請改用
-  backtick 包 (`` `[[card:<UUID>]]` ``)。
-- 沒有 `[[card:` 字串的 markdown 行為 byte-for-byte 不變:fast-path
-  字串檢查不通過就完全 skip 新邏輯。
-
-### v0.1.1 — 2026-05-25
-
-- 拿掉嚴格的 `cli-version-unsupported` 版本擋板。Heptabase CLI 跟桌面 app
-  綁在一起更新,使用者沒辦法單獨釘版本;硬擋等於上游一升 minor 就讓
-  hbedit 全壞,要等我們發 patch 才救得回來。
-- 新增 `cli-response-unexpected` 錯誤碼:當 `heptabase` 的 stdout 不是
-  合法 JSON(例如純文字、HTML、或空字串)時觸發。對應的 SOP 會請使用者
-  把自己的 CLI 版本對到 `SKILL.md` 頂部新增的「Verified against」那行
-  (目前 `0.3.x`):**不一樣**就提示可能是上游 API 變動,請使用者更新
-  hbedit 或到 GitHub issue 回報;**一樣**則直接附完整錯誤訊息回報。
-- `hb doctor` 不再因 CLI 版本不符而失敗,但仍會在 `detail` 印出實際版本。
-
-### v0.1.0 — 2026-05-24
-
-首次發布。
-
-- `hb` CLI:`doctor`、`init`、`push`、`pull`(首次綁定 + smart-sync 兩種
-  形式)、`tag add` / `tag remove`、`unlink`
-- Scratch-card block-ID 移植機制 —— 改寫既有卡片中段、保留 block ID 跟
-  指向它的引用
-- Vault 模型:git 追蹤的 `.hbedit/state.json` 記 `path → cardId` 綁定,
-  per-machine `~/.hbedit/cache/<vaultId>/` 記 sync 狀態
-- 多機協作:`state.json` 隨 git 帶走、`hb pull <path>` smart-sync 在新機
-  器自動 baseline(action: `baseline-established` / `noop` / `updated` /
-  `conflict`)
-- 衝突保護:`hb push` 偵測遠端被改過時把本地版備份成 `<path>.conflict.md`、
-  回 `content-conflict`、不悶聲蓋掉
-- Heptabase Agent Skill 適用 Claude Code、Codex CLI、opencode —— 自然
-  語句觸發 + 明確的 escape hatch
-- 純 stdlib Python(3.9+)、無 pip 依賴
+詳見 [`CHANGELOG.md`](./CHANGELOG.md)。版本依 [SemVer](https://semver.org) 命名。
 
 ## License
 

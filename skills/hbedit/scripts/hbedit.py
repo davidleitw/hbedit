@@ -157,13 +157,15 @@ def _push_create(vault, cd, rel_path, body):
             detail=htb.error_detail(exc)), 2
     card_id = result["id"]
 
-    # Fast-path: only re-process if the body contains the placeholder
-    # syntax. Embed-free pushes are byte-identical to v0.1.1 behavior.
-    if "[[card:" in body:
+    # Fast-path: only re-process if the body contains a placeholder
+    # syntax we substitute. Placeholder-free pushes are byte-identical
+    # to v0.1.1 behavior.
+    if "[[card:" in body or "[[date:" in body:
         try:
             intermediate = htb.note_read(card_id)
-            new_doc = pm2md.substitute_card_placeholders(
-                json.loads(intermediate["content"]))
+            new_doc = json.loads(intermediate["content"])
+            new_doc = pm2md.substitute_card_placeholders(new_doc)
+            new_doc = pm2md.substitute_date_placeholders(new_doc)
             htb.note_save(card_id,
                           json.dumps(new_doc),
                           intermediate["contentMd5"])
@@ -172,9 +174,9 @@ def _push_create(vault, cd, rel_path, body):
         except htb.HtbError as exc:
             return errors.emit_error(
                 "push", "create-failed", path=rel_path,
-                detail=("card created (id=%s) but card-ref substitution "
-                        "failed: %s. The card exists on Heptabase with "
-                        "placeholders unresolved."
+                detail=("card created (id=%s) but placeholder "
+                        "substitution failed: %s. The card exists on "
+                        "Heptabase with placeholders unresolved."
                         % (card_id, htb.error_detail(exc)))), 2
 
     try:

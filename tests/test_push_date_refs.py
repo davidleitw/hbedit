@@ -127,5 +127,196 @@ class TestPushUpdateWithDatePlaceholder(unittest.TestCase):
             self.assertEqual(wrapping_para["attrs"]["id"], "p-old")
 
 
+class TestPushCreateWithDatePlaceholder(unittest.TestCase):
+    """_push_create: when body contains [[date:...]] (no [[card:),
+    the fast-path gate triggers the intermediate read+save path and
+    the saved payload contains a date node."""
+
+    def test_date_only_triggers_substitute_and_save(self):
+        with tempfile.TemporaryDirectory() as root:
+            vaultlib.init_vault(root)
+            rel = "a.md"
+            abs_path = os.path.join(root, rel)
+            with open(abs_path, "w") as f:
+                f.write(f"# t\n\ntoday [[date:{_DATE_A}]] ok")
+
+            from vault import find as vault_find
+            info = vault_find(abs_path)
+            vault, cd = info.root, info.cache_dir
+
+            intermediate_pm = _scratch_pm_with_date_placeholder_text()
+            saved_payloads = []
+
+            def fake_save(card_id_arg, content, content_md5):
+                saved_payloads.append((card_id_arg, content, content_md5))
+                return {"id": card_id_arg, "title": "t",
+                        "contentMd5": "after-save-md5"}
+
+            with mock.patch.object(hbedit.htb, "note_create",
+                                   return_value={"id": "new-card-id",
+                                                 "title": "t"}), \
+                 mock.patch.object(hbedit.htb, "note_read",
+                                   side_effect=[
+                                       {"id": "new-card-id", "title": "t",
+                                        "content": json.dumps(intermediate_pm),
+                                        "contentMd5": "intermediate-md5"},
+                                       {"id": "new-card-id", "title": "t",
+                                        "content": json.dumps(intermediate_pm),
+                                        "contentMd5": "after-save-md5"},
+                                   ]) as nr, \
+                 mock.patch.object(hbedit.htb, "note_save",
+                                   side_effect=fake_save) as ns:
+                hbedit._push_create(vault, cd, rel,
+                                    f"# t\n\ntoday [[date:{_DATE_A}]] ok")
+
+            self.assertEqual(len(saved_payloads), 1)
+            card_id_arg, content, lock = saved_payloads[0]
+            self.assertEqual(card_id_arg, "new-card-id")
+            self.assertEqual(lock, "intermediate-md5")
+            self.assertIn('"type": "date"', content)
+            self.assertIn(_DATE_A, content)
+            self.assertEqual(nr.call_count, 2)
+
+
+class TestPushCreateWithBothPlaceholders(unittest.TestCase):
+    """A body with both [[card:UUID]] and [[date:...]] in one paragraph
+    must have both substitutions applied in the saved payload."""
+
+    def test_both_placeholders_in_one_save(self):
+        with tempfile.TemporaryDirectory() as root:
+            vaultlib.init_vault(root)
+            rel = "a.md"
+            abs_path = os.path.join(root, rel)
+            body = (f"# t\n\nsee [[card:{_UUID_C}]] on "
+                    f"[[date:{_DATE_A}]]")
+            with open(abs_path, "w") as f:
+                f.write(body)
+
+            from vault import find as vault_find
+            info = vault_find(abs_path)
+            vault, cd = info.root, info.cache_dir
+
+            intermediate_pm = {
+                "type": "doc",
+                "content": [
+                    {"type": "heading",
+                     "attrs": {"id": "h", "level": 1},
+                     "content": [{"type": "text", "text": "t"}]},
+                    {"type": "paragraph",
+                     "attrs": {"id": "p"},
+                     "content": [{"type": "text",
+                                  "text": (f"see [[card:{_UUID_C}]] on "
+                                           f"[[date:{_DATE_A}]]")}]}
+                ]
+            }
+            saved_payloads = []
+
+            def fake_save(card_id_arg, content, content_md5):
+                saved_payloads.append(content)
+                return {"id": card_id_arg, "title": "t",
+                        "contentMd5": "after-md5"}
+
+            with mock.patch.object(hbedit.htb, "note_create",
+                                   return_value={"id": "new-id",
+                                                 "title": "t"}), \
+                 mock.patch.object(hbedit.htb, "note_read",
+                                   side_effect=[
+                                       {"id": "new-id", "title": "t",
+                                        "content": json.dumps(intermediate_pm),
+                                        "contentMd5": "im-md5"},
+                                       {"id": "new-id", "title": "t",
+                                        "content": json.dumps(intermediate_pm),
+                                        "contentMd5": "after-md5"},
+                                   ]), \
+                 mock.patch.object(hbedit.htb, "note_save",
+                                   side_effect=fake_save):
+                hbedit._push_create(vault, cd, rel, body)
+
+            self.assertEqual(len(saved_payloads), 1)
+            saved = saved_payloads[0]
+            self.assertIn('"type": "card"', saved)
+            self.assertIn('"type": "date"', saved)
+            self.assertIn(_UUID_C, saved)
+            self.assertIn(_DATE_A, saved)
+
+
+class TestPushCreateNoPlaceholderFastPathStillHolds(unittest.TestCase):
+    """Regression: body with no [[card: and no [[date: must not trigger
+    an intermediate read+save (byte-identical to v0.1.1 / v0.1.2
+    embed-free behavior)."""
+
+    def test_no_extra_round_trip_when_no_placeholders(self):
+        with tempfile.TemporaryDirectory() as root:
+            vaultlib.init_vault(root)
+            rel = "a.md"
+            abs_path = os.path.join(root, rel)
+            with open(abs_path, "w") as f:
+                f.write("# plain\n\nno placeholders here")
+
+            from vault import find as vault_find
+            info = vault_find(abs_path)
+            vault, cd = info.root, info.cache_dir
+
+            with mock.patch.object(hbedit.htb, "note_create",
+                                   return_value={"id": "new-card-id",
+                                                 "title": "plain"}), \
+                 mock.patch.object(hbedit.htb, "note_save") as ns, \
+                 mock.patch.object(hbedit.htb, "note_read",
+                                   return_value={
+                                       "id": "new-card-id",
+                                       "title": "plain",
+                                       "content": json.dumps(
+                                           {"type": "doc", "content": []}),
+                                       "contentMd5": "deadbeef"
+                                   }) as nr:
+                hbedit._push_create(vault, cd, rel,
+                                    "# plain\n\nno placeholders here")
+
+            self.assertEqual(ns.call_count, 0)
+            self.assertEqual(nr.call_count, 1)
+
+
+class TestPushCreateSubstitutionFailureGeneralized(unittest.TestCase):
+    """If the substitution save fails on a date-only body, the
+    create-failed detail must use generalized 'placeholder' wording
+    (not 'card-ref') and must mention the cardId."""
+
+    def test_date_only_save_failure_reports_placeholder(self):
+        with tempfile.TemporaryDirectory() as root:
+            vaultlib.init_vault(root)
+            rel = "a.md"
+            abs_path = os.path.join(root, rel)
+            with open(abs_path, "w") as f:
+                f.write(f"# t\n\n[[date:{_DATE_A}]]")
+
+            from vault import find as vault_find
+            info = vault_find(abs_path)
+            vault, cd = info.root, info.cache_dir
+
+            intermediate_pm = _scratch_pm_with_date_placeholder_text()
+
+            with mock.patch.object(hbedit.htb, "note_create",
+                                   return_value={"id": "new-card-id",
+                                                 "title": "t"}), \
+                 mock.patch.object(hbedit.htb, "note_read",
+                                   return_value={
+                                       "id": "new-card-id", "title": "t",
+                                       "content": json.dumps(intermediate_pm),
+                                       "contentMd5": "im"}), \
+                 mock.patch.object(hbedit.htb, "note_save",
+                                   side_effect=hbedit.htb.HtbError(
+                                       "heptabase note save failed: boom")):
+                out, rc = hbedit._push_create(vault, cd, rel,
+                                              f"# t\n\n[[date:{_DATE_A}]]")
+
+            self.assertEqual(rc, 2)
+            obj = json.loads(out)
+            self.assertEqual(obj["status"], "error")
+            self.assertEqual(obj["code"], "create-failed")
+            self.assertIn("placeholder", obj["detail"])
+            self.assertNotIn("card-ref", obj["detail"])
+            self.assertIn("new-card-id", obj["detail"])
+
+
 if __name__ == "__main__":
     unittest.main()

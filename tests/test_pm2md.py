@@ -92,6 +92,41 @@ class TestSubstituteCardPlaceholders(unittest.TestCase):
             out["content"][0]["content"],
             [_txt("head "), _card_node(_UUID_A)])
 
+    def test_multiple_placeholders_in_one_text(self):
+        doc = _doc(_para_with(_txt(
+            f"見 [[card:{_UUID_A}]] 跟 [[card:{_UUID_B}]] 兩張")))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("見 "), _card_node(_UUID_A),
+             _txt(" 跟 "), _card_node(_UUID_B),
+             _txt(" 兩張")])
+
+    def test_adjacent_placeholders_no_space(self):
+        doc = _doc(_para_with(_txt(
+            f"[[card:{_UUID_A}]][[card:{_UUID_B}]]")))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_card_node(_UUID_A), _card_node(_UUID_B)])
+
+    def test_uppercase_uuid_lowercased(self):
+        upper = _UUID_A.upper()
+        doc = _doc(_para_with(_txt(f"[[card:{upper}]]")))
+        out = pm2md.substitute_card_placeholders(doc)
+        # output cardId is lowercase canonical
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_card_node(_UUID_A)])
+
+    def test_no_placeholder_returns_equivalent_doc(self):
+        doc = _doc(_para_with(_txt("plain text, no placeholders")))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(out, doc)
+        # And it's NOT the same object (deepcopy contract)
+        self.assertIsNot(out, doc)
+        self.assertIsNot(out["content"][0], doc["content"][0])
+
 
 if __name__ == "__main__":
     unittest.main()

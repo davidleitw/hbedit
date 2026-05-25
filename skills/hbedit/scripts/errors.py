@@ -12,7 +12,7 @@ import json
 # -- error codes -----------------------------------------------------------
 # Doctor / environment
 CLI_MISSING = "cli-missing"
-CLI_VERSION_UNSUPPORTED = "cli-version-unsupported"
+CLI_RESPONSE_UNEXPECTED = "cli-response-unexpected"
 APP_NOT_RUNNING = "app-not-running"
 
 # Vault / filesystem

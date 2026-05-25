@@ -207,6 +207,18 @@ claude --plugin-dir /path/to/hbedit
 
 版本依 [SemVer](https://semver.org) 命名,新版在上。
 
+### v0.1.1 — 2026-05-25
+
+- 拿掉嚴格的 `cli-version-unsupported` 版本擋板。Heptabase CLI 跟桌面 app
+  綁在一起更新,使用者沒辦法單獨釘版本;硬擋等於上游一升 minor 就讓
+  hbedit 全壞,要等我們發 patch 才救得回來。
+- 新增 `cli-response-unexpected` 錯誤碼:當 `heptabase` 的 stdout 不是
+  合法 JSON(例如純文字、HTML、或空字串)時觸發。對應的 SOP 會請使用者
+  把自己的 CLI 版本對到 `SKILL.md` 頂部新增的「Verified against」那行
+  (目前 `0.3.x`):**不一樣**就提示可能是上游 API 變動,請使用者更新
+  hbedit 或到 GitHub issue 回報;**一樣**則直接附完整錯誤訊息回報。
+- `hb doctor` 不再因 CLI 版本不符而失敗,但仍會在 `detail` 印出實際版本。
+
 ### v0.1.0 — 2026-05-24
 
 首次發布。

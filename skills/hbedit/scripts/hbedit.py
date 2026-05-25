@@ -28,13 +28,6 @@ import tagsync                      # noqa: E402
 import transplant                   # noqa: E402
 
 
-SUPPORTED_RANGE = "0.3."
-
-
-def _version_supported(version):
-    return bool(version) and version.strip().startswith(SUPPORTED_RANGE)
-
-
 def doctor():
     """Returns the JSON output string for `hb doctor` and an exit code."""
     if shutil.which("heptabase") is None:
@@ -45,13 +38,12 @@ def doctor():
     except OSError as exc:
         return errors.emit_error("doctor", errors.CLI_MISSING,
                                  detail="could not run heptabase: %s" % exc), 2
-    if not _version_supported(version):
-        return errors.emit_error(
-            "doctor", errors.CLI_VERSION_UNSUPPORTED,
-            detail="heptabase %s is outside the supported %sx range"
-                   % (version or "?", SUPPORTED_RANGE)), 2
     try:
         htb.card_list(limit=1)
+    except htb.HtbUnexpectedResponse as exc:
+        return errors.emit_error(
+            "doctor", errors.CLI_RESPONSE_UNEXPECTED,
+            detail=htb.error_detail(exc)), 2
     except htb.HtbError as exc:
         return errors.emit_error(
             "doctor", errors.APP_NOT_RUNNING,
@@ -59,7 +51,7 @@ def doctor():
     except OSError as exc:
         return errors.emit_error("doctor", errors.CLI_MISSING,
                                  detail="could not run heptabase: %s" % exc), 2
-    summary = "heptabase %s, desktop app reachable" % version
+    summary = "heptabase %s, desktop app reachable" % (version or "?")
     cache_line = _doctor_cache_line(os.getcwd())
     if cache_line:
         summary = summary + "\n" + cache_line
@@ -157,6 +149,8 @@ def _push_create(vault, cd, rel_path, body):
     """Create a new card from `body`, register in state.json + local-state."""
     try:
         result = htb.note_create(body)
+    except htb.HtbUnexpectedResponse:
+        raise
     except htb.HtbError as exc:
         return errors.emit_error(
             "push", "create-failed", path=rel_path,
@@ -220,6 +214,8 @@ def _push_update(vault, cd, rel_path, body, card_id):
                 raise
         finally:
             htb.card_trash(scratch["id"])
+    except htb.HtbUnexpectedResponse:
+        raise
     except htb.HtbError as exc:
         return errors.emit_error(
             "push", "remote-error", path=rel_path,
@@ -675,29 +671,35 @@ def main(argv):
     parser = _build_parser()
     args = parser.parse_args(argv[1:])
 
-    if args.command == "doctor":
-        out, rc = doctor()
-    elif args.command == "init":
-        out, rc = init(os.getcwd())
-    elif args.command == "push":
-        out, rc = push(args.path)
-    elif args.command == "pull":
-        if args.second is None:
-            out, rc = pull_smart(args.first)
+    try:
+        if args.command == "doctor":
+            out, rc = doctor()
+        elif args.command == "init":
+            out, rc = init(os.getcwd())
+        elif args.command == "push":
+            out, rc = push(args.path)
+        elif args.command == "pull":
+            if args.second is None:
+                out, rc = pull_smart(args.first)
+            else:
+                out, rc = pull_first_time(args.first, args.second)
+        elif args.command == "tag":
+            if args.tag_action == "add":
+                out, rc = tag_add(args.path, args.name)
+            else:
+                out, rc = tag_remove(args.path, args.name)
+        elif args.command == "unlink":
+            out, rc = unlink(args.path)
         else:
-            out, rc = pull_first_time(args.first, args.second)
-    elif args.command == "tag":
-        if args.tag_action == "add":
-            out, rc = tag_add(args.path, args.name)
-        else:
-            out, rc = tag_remove(args.path, args.name)
-    elif args.command == "unlink":
-        out, rc = unlink(args.path)
-    else:
-        # argparse with required=True should make this unreachable,
-        # but keep a defensive fallback.
-        parser.print_help()
-        return 1
+            # argparse with required=True should make this unreachable,
+            # but keep a defensive fallback.
+            parser.print_help()
+            return 1
+    except htb.HtbUnexpectedResponse as exc:
+        out = errors.emit_error(
+            args.command, errors.CLI_RESPONSE_UNEXPECTED,
+            detail=htb.error_detail(exc))
+        rc = 2
     print(out)
     return rc
 

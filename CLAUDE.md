@@ -20,6 +20,27 @@ The two READMEs, the manifest version, and the git tag should all
 describe the same state. If one is missing the others, the release is
 not yet ready.
 
+## CLI verification discipline
+
+`skills/hbedit/SKILL.md` declares `Verified against Heptabase CLI: X.Y.x`
+near the top. That line is the single source of truth for which upstream
+CLI versions we've actually tested against. hbedit does **not** gate on
+CLI version — the line is consulted by agents only when an error already
+occurred, via the `cli-response-unexpected` SOP.
+
+When Heptabase ships a new CLI minor (e.g. `0.4`):
+
+1. Run the manual TCs (scratch card / transplant / tag round-trip) against
+   the new CLI.
+2. If green: update the "Verified against" line and the "last tested"
+   date in `SKILL.md`, and ship as a patch release (`vX.Y.(Z+1)` — the
+   release notes simply say "verified against 0.Y.x").
+3. If something breaks: do **not** update the line. File an issue, fix
+   hbedit, then update the line as part of the fix release.
+
+The line moves only on green TCs. Do not bump it speculatively or as a
+hopeful gesture — the whole error-time UX hinges on it being trustworthy.
+
 ## State schema discipline
 
 `.hbedit/state.json` carries a `schemaVersion` field. Any change to its

@@ -237,6 +237,20 @@ clean up afterward.
 
 Versions follow [SemVer](https://semver.org). Newest first.
 
+### v0.1.1 — 2026-05-25
+
+- Removed the strict `cli-version-unsupported` gate. The Heptabase CLI
+  ships with the desktop app and updates with it, so a hard pin meant
+  every upstream minor bump broke hbedit until we shipped a patch.
+- New `cli-response-unexpected` error code: surfaced when `heptabase`
+  stdout isn't parseable JSON (plain text, HTML, or empty where JSON
+  was expected). Its SOP asks the user to compare `heptabase --version`
+  against the new "Verified against" line at the top of `SKILL.md`
+  (currently `0.3.x`) and to open an issue at the repo — phrased
+  differently depending on whether the versions match or differ.
+- `hb doctor` no longer blocks on CLI version; it still reports the
+  detected version in `detail`.
+
 ### v0.1.0 — 2026-05-24
 
 Initial release.

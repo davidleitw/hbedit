@@ -12,7 +12,7 @@ import errors
 def test_error_codes_constants_exist():
     # Every code referenced by SKILL.md / spec must be a module-level constant.
     expected = {
-        "CLI_MISSING", "CLI_VERSION_UNSUPPORTED", "APP_NOT_RUNNING",
+        "CLI_MISSING", "CLI_RESPONSE_UNEXPECTED", "APP_NOT_RUNNING",
         "NOT_IN_VAULT", "FILE_NOT_FOUND", "PATH_EXISTS_UNTRACKED",
         "PATH_NOT_TRACKED", "NO_BASELINE", "CONTENT_CONFLICT",
         "TAG_AMBIGUITY", "CARD_NOT_FOUND", "TAG_NOT_ON_CARD",
@@ -28,6 +28,7 @@ def test_error_codes_are_kebab_case():
     assert errors.NO_BASELINE == "no-baseline"
     assert errors.PATH_NOT_TRACKED == "path-not-tracked"
     assert errors.CARD_ID_ALREADY_TRACKED == "cardId-already-tracked"
+    assert errors.CLI_RESPONSE_UNEXPECTED == "cli-response-unexpected"
 
 
 def test_emit_ok():

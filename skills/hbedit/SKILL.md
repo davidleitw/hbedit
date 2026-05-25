@@ -18,6 +18,22 @@ allowed-tools: Bash(hb *) Bash(heptabase *)
 > or writes Heptabase's database, storage, or internal files. If asked
 > whether this is official: it is not.
 
+**Verified against Heptabase CLI: `0.3.x`** (last tested 2026-05-25).
+hbedit does not gate on this version — it lets commands run on any
+version and only consults this number when something already failed.
+If a user hits an unexpected error and `heptabase --version` falls
+outside `0.3.x`, the mismatch is the first thing to surface.
+
+## CLI errors are not yours to fix
+
+If any `heptabase`-backed `hb` command returns a non-`ok` status, **stop**.
+Do not retry with different args. Do not fall back to a different
+command. Do not edit `.hbedit/state.json` to "make it work". Show the
+user the JSON output verbatim and follow the matching SOP in
+`references/errors.md`. For `cli-response-unexpected` in particular,
+that SOP requires you to compare `heptabase --version` against the
+"Verified against" line above and tell the user if they differ.
+
 ## What hbedit uniquely does
 
 - Edit the middle of an existing card via block-ID transplant (base CLI cannot).

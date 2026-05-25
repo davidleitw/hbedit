@@ -9,20 +9,6 @@ import hbedit
 import vault as vaultlib
 
 
-class TestVersionGate(unittest.TestCase):
-    def test_supported_minor(self):
-        self.assertTrue(hbedit._version_supported("0.3.0"))
-        self.assertTrue(hbedit._version_supported("0.3.9"))
-
-    def test_unsupported_minor(self):
-        self.assertFalse(hbedit._version_supported("0.2.9"))
-        self.assertFalse(hbedit._version_supported("0.4.0"))
-
-    def test_garbage(self):
-        self.assertFalse(hbedit._version_supported(""))
-        self.assertFalse(hbedit._version_supported("not-a-version"))
-
-
 class TestDoctorCacheLine(unittest.TestCase):
     """The cache line is appended to doctor() output only when cwd is
     inside a vault. The pure formatting helper is tested directly; the

@@ -23,23 +23,35 @@ Agent steps:
 4. Reference: <https://support.heptabase.com/en/articles/14715462-how-to-use-heptabase-cli>
 5. Pause; do not continue until `hb doctor` returns ok.
 
-## cli-version-unsupported
+## cli-response-unexpected
 
-What happened: CLI version outside `0.3.x`.
+What happened: an `hb` command got back stdout from `heptabase` that
+isn't parseable as JSON (e.g. plain text, HTML, or an empty body where
+JSON was expected). Most likely causes: Heptabase shipped a new CLI
+that changed the response shape, or the desktop-app HTTP layer is in
+a degraded state.
 
-The CLI version tracks the Heptabase desktop app — there is no separate
-CLI package to update. Bringing the CLI to a supported version means
-updating the desktop app.
+hbedit no longer pre-gates on CLI version, so this error is the signal
+that drift may have happened.
 
 Agent steps:
-1. Tell the user the installed `heptabase` CLI is outside the supported
-   `0.3.x` range, and quote the detected version from `doctor`'s `detail`.
-2. Ask them to update the Heptabase **desktop app**. On macOS the bundled
-   CLI updates with the app automatically; on Windows they may need to
-   re-run the PATH-setup step from **Settings → AI Features → CLI** after
-   the app updates.
-3. Reference: <https://support.heptabase.com/en/articles/14715462-how-to-use-heptabase-cli>
-4. Pause.
+1. **Stop.** Do not retry the command. Do not edit `state.json`. Do not
+   attempt a workaround.
+2. Run `heptabase --version` and read the "Verified against" line at the
+   top of `SKILL.md`.
+3. **If the versions differ** (e.g. user has `0.4.0`, SKILL.md says
+   `0.3.x`), tell the user:
+   > Your `heptabase` CLI is `<actual>`, but this version of hbedit
+   > was only verified against `<verified>`. The error may be due to
+   > upstream API changes. Please either (a) check whether a newer
+   > hbedit release supports `<actual>`, or (b) open an issue at
+   > <https://github.com/davidleitw/hbedit/issues> with both versions
+   > and the full error output.
+4. **If the versions match**, the error is not version-drift. Surface
+   the raw `detail` field to the user and ask them to open an issue
+   at the same URL with the full error and what they were doing.
+5. Reference: <https://support.heptabase.com/en/articles/14715462-how-to-use-heptabase-cli>
+6. Pause until the user decides how to proceed.
 
 ## app-not-running
 

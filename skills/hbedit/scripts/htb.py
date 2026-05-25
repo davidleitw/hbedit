@@ -15,7 +15,14 @@ import tempfile
 
 
 class HtbError(RuntimeError):
-    """A `heptabase` invocation failed or returned something unparseable."""
+    """A `heptabase` invocation failed."""
+
+
+class HtbUnexpectedResponse(HtbError):
+    """The `heptabase` CLI returned output we can't parse as JSON. Likely
+    means upstream changed the response shape — the caller should surface
+    this as `cli-response-unexpected` so the user can compare their CLI
+    version against SKILL.md's verified version."""
 
 
 def error_detail(err):
@@ -50,7 +57,9 @@ def _run(args):
     try:
         return json.loads(out)
     except json.JSONDecodeError:
-        return {"_raw": out}
+        raise HtbUnexpectedResponse(
+            "heptabase " + " ".join(args) + " returned non-JSON output:\n" + out
+        )
 
 
 def version():

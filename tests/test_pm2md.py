@@ -127,6 +127,35 @@ class TestSubstituteCardPlaceholders(unittest.TestCase):
         self.assertIsNot(out, doc)
         self.assertIsNot(out["content"][0], doc["content"][0])
 
+    def test_invalid_uuid_kept_as_text(self):
+        # Wrong format inside brackets
+        doc = _doc(_para_with(_txt("[[card:not-a-uuid]]")))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("[[card:not-a-uuid]]")])
+
+    def test_short_uuid_kept_as_text(self):
+        doc = _doc(_para_with(_txt("[[card:abc]]")))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("[[card:abc]]")])
+
+    def test_unclosed_placeholder_kept_as_text(self):
+        doc = _doc(_para_with(_txt(f"[[card:{_UUID_A}")))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt(f"[[card:{_UUID_A}")])
+
+    def test_whitespace_inside_placeholder_kept_as_text(self):
+        doc = _doc(_para_with(_txt(f"[[card: {_UUID_A}]]")))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt(f"[[card: {_UUID_A}]]")])
+
 
 if __name__ == "__main__":
     unittest.main()

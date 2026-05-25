@@ -212,6 +212,9 @@ def substitute_card_placeholders(doc):
 
 
 def _walk_substitute(node, splitter):
+    """DFS the PM doc; apply `splitter(text_node) -> list[node]` to each
+    text node. Skips `code_block` subtrees entirely. Mutates `node` in
+    place — callers are expected to deepcopy before entry."""
     if not isinstance(node, dict):
         return node
     # Do not descend into code_block subtrees.

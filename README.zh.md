@@ -259,6 +259,28 @@ claude --plugin-dir /path/to/hbedit
 
 版本依 [SemVer](https://semver.org) 命名,新版在上。
 
+### v0.1.4 — 2026-05-26
+
+- Date inline node(ProseMirror 裡的 `date` node)現在可以透過
+  `hb pull` / `hb push` 完整 round-trip,使用嚴格
+  `[[date:YYYY-MM-DD]]` placeholder 語法。Pull 端只在 `attrs.date`
+  通過 `YYYY-MM-DD` 正則 **且** `datetime.date.fromisoformat`
+  接受時才 emit placeholder,否則 fall back 回原本的
+  `<!-- UNCONVERTED inline date -->` 註解 — markdown 不會假裝可以
+  round-trip 一個工具其實處理不了的形態。Push 端做對稱的行事曆
+  驗證。機制跟 v0.1.2 的 card embed 一致。詳見「目前的限制」段的
+  遷移說明與 forward-compat 注意事項。
+- **Breaking**:之前依賴「`[[date:YYYY-MM-DD]]` 會被當純文字 push」
+  這個行為的人,現在會變成真的 date inline node。要保留純文字請
+  改用 backtick 包 (`` `[[date:2026-05-26]]` ``)。
+- vault 裡仍含 `<!-- UNCONVERTED inline date -->` 的 `.md` **不會**
+  自動升級。請對那張卡片重新 `hb pull <path>` 才會更新成新
+  placeholder;沒重 pull 就 push 一樣會掉 date,行為跟 v0.1.3 相同。
+- **docs**:`skills/hbedit/references/errors.md` 新增 `create-failed`
+  SOP,涵蓋 v0.1.2 引入、v0.1.4 generalize 後的「卡片建好了但
+  substitution 失敗」sub-case。agent 千萬不要直接 retry
+  `hb push` — 會產生 duplicate orphan。
+
 ### v0.1.3 — 2026-05-26
 
 - **fix**:README / README.zh / INSTALL.md 裡的 `curl | sh` 一鍵指令

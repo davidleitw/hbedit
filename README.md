@@ -295,6 +295,33 @@ clean up afterward.
 
 Versions follow [SemVer](https://semver.org). Newest first.
 
+### v0.1.4 — 2026-05-26
+
+- Date inline nodes (`date` nodes in ProseMirror) now round-trip
+  through `hb pull` / `hb push` via the strict `[[date:YYYY-MM-DD]]`
+  placeholder syntax. Pull emits the placeholder only when
+  `attrs.date` matches `YYYY-MM-DD` AND
+  `datetime.date.fromisoformat` accepts it; otherwise it falls
+  back to the existing `<!-- UNCONVERTED inline date -->` comment so
+  the markdown never claims a round-trip the tool cannot honor. Push
+  reverses the placeholder with calendar validation. Same
+  post-process mechanism as the v0.1.2 card embed work. See
+  **Known limitations** for the migration note and forward-compat
+  caveat.
+- **Breaking** for anyone who wrote `[[date:YYYY-MM-DD]]` as literal
+  text and pushed: it now becomes a real date inline node. Wrap such
+  literals in backticks (`` `[[date:2026-05-26]]` ``) to keep them
+  as text.
+- Already-pulled `.md` files containing the prior
+  `<!-- UNCONVERTED inline date -->` comment do NOT auto-upgrade.
+  Re-pull (`hb pull <path>`) to refresh; otherwise push behavior
+  matches v0.1.3 (date is lost).
+- **docs**: new `create-failed` SOP in
+  `skills/hbedit/references/errors.md` documenting the
+  "card created, substitution failed" sub-case introduced by v0.1.2
+  and generalized here. Critical for agents: do NOT retry `hb push`
+  blindly — it creates a duplicate orphan.
+
 ### v0.1.3 — 2026-05-26
 
 - **fix**: the `curl | sh` one-liner in README / README.zh / INSTALL.md

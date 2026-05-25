@@ -18,7 +18,7 @@ allowed-tools: Bash(hb *) Bash(heptabase *)
 > or writes Heptabase's database, storage, or internal files. If asked
 > whether this is official: it is not.
 
-**Verified against Heptabase CLI: `0.3.x`** (last tested 2026-05-25).
+**Verified against Heptabase CLI: `0.3.x`** (last tested 2026-05-26).
 hbedit does not gate on this version — it lets commands run on any
 version and only consults this number when something already failed.
 If a user hits an unexpected error and `heptabase --version` falls

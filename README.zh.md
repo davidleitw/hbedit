@@ -179,7 +179,10 @@ hbedit 包成 Claude Code plugin / Agent Skill。`SKILL.md` 告訴 agent
 - **單卡 push 大約 10 萬字會撞天花板**:ProseMirror serialization 的硬限制。
 - **只支援 note 卡片**:journal、PDF、whiteboard 都不行。
 - **沒有 `hb mv`**:想改名 tracked `.md`,要手動編 `state.json`。
-- **Windows 未驗證**:實作應該能跑,但 CI 只跑 Linux 跟 macOS。歡迎回報實測結果。
+- **Windows 未驗證**:我們完全沒有在 native Windows(PowerShell / cmd)
+  上跑過 hbedit。`bin/hb` 是 POSIX shell script,WSL 應該可以、native
+  Windows 八成需要改才能動。CI 也只跑 Linux 跟 macOS。如果你是 Windows
+  使用者願意試,歡迎回報結果,或更歡迎直接送 PR。
 
 ## 還想知道更多
 

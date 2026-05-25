@@ -207,8 +207,11 @@ Two things worth knowing:
   supported.
 - **No `hb mv`.** Renaming a tracked `.md` file requires editing
   `state.json` by hand.
-- **Windows is untested.** The implementation should work but only Linux
-  and macOS are exercised in CI. Reports welcome.
+- **Windows is untested.** We have never run hbedit on native Windows
+  (PowerShell / cmd). The `bin/hb` shim is a POSIX shell script; WSL
+  should work, native Windows almost certainly does not without
+  adjustments. CI only covers Linux and macOS. If you're a Windows
+  user willing to try it, a report — or a PR — would be very welcome.
 
 ## Where to learn more
 

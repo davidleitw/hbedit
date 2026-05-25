@@ -386,6 +386,60 @@ class TestSubstituteDatePlaceholders(unittest.TestCase):
             out["content"][0]["content"],
             [_txt("[[date:2026-02-30]]")])
 
+    def test_code_mark_text_not_substituted(self):
+        doc = _doc(_para_with(
+            _txt(f"[[date:{_DATE_A}]]", marks=[{"type": "code"}])))
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt(f"[[date:{_DATE_A}]]", marks=[{"type": "code"}])])
+
+    def test_code_block_subtree_not_substituted(self):
+        doc = _doc({
+            "type": "code_block",
+            "attrs": {"id": "cb", "params": "python"},
+            "content": [_txt(f"[[date:{_DATE_A}]]")]
+        })
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt(f"[[date:{_DATE_A}]]")])
+
+    def test_strong_mark_preserved_on_split_segments(self):
+        doc = _doc(_para_with(
+            _txt(f"a [[date:{_DATE_A}]] b",
+                 marks=[{"type": "strong"}])))
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("a ", marks=[{"type": "strong"}]),
+             _date_node(_DATE_A),
+             _txt(" b", marks=[{"type": "strong"}])])
+
+    def test_paragraph_attrs_id_preserved(self):
+        doc = _doc(_para_with(_txt(f"[[date:{_DATE_A}]]")))
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["attrs"]["id"], "para-id-fixed")
+
+    def test_input_not_mutated(self):
+        import copy
+        doc = _doc(_para_with(_txt(f"[[date:{_DATE_A}]]")))
+        before = copy.deepcopy(doc)
+        pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(doc, before)
+
+    def test_substitution_in_heading(self):
+        doc = _doc({
+            "type": "heading",
+            "attrs": {"id": "h1", "level": 2},
+            "content": [_txt(f"prefix [[date:{_DATE_A}]] suffix")]
+        })
+        out = pm2md.substitute_date_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("prefix "), _date_node(_DATE_A), _txt(" suffix")])
+
 
 if __name__ == "__main__":
     unittest.main()

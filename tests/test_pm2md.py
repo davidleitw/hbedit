@@ -190,6 +190,46 @@ class TestSubstituteCardPlaceholders(unittest.TestCase):
              _card_node(_UUID_A),
              _txt(" b", marks=[{"type": "strong"}])])
 
+    def test_paragraph_attrs_id_preserved(self):
+        doc = _doc(_para_with(_txt(f"[[card:{_UUID_A}]]")))
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["attrs"]["id"], "para-id-fixed")
+
+    def test_input_not_mutated(self):
+        import copy
+        doc = _doc(_para_with(_txt(f"[[card:{_UUID_A}]]")))
+        before = copy.deepcopy(doc)
+        pm2md.substitute_card_placeholders(doc)
+        # Input identical to its pre-call deep copy.
+        self.assertEqual(doc, before)
+
+    def test_substitution_in_heading(self):
+        doc = _doc({
+            "type": "heading",
+            "attrs": {"id": "h1", "level": 2},
+            "content": [_txt(f"前綴 [[card:{_UUID_A}]] 後綴")]
+        })
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"],
+            [_txt("前綴 "), _card_node(_UUID_A), _txt(" 後綴")])
+
+    def test_substitution_in_list_item(self):
+        doc = _doc({
+            "type": "bullet_list_item",
+            "content": [_para_with(_txt(f"見 [[card:{_UUID_A}]]"))]
+        })
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(
+            out["content"][0]["content"][0]["content"],
+            [_txt("見 "), _card_node(_UUID_A)])
+
+    def test_empty_doc_returns_equivalent(self):
+        doc = {"type": "doc"}
+        out = pm2md.substitute_card_placeholders(doc)
+        self.assertEqual(out, {"type": "doc"})
+
 
 if __name__ == "__main__":
     unittest.main()
